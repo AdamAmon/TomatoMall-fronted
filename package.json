@@ -1,0 +1,29 @@
+{
+  "name": "tomato_fronted",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview"
+  },
+  "private": true,
+  "dependencies": {
+    "axios": "^1.6.2",
+    "element-plus": "^2.10.2",
+    "vue": "^3.5.17",
+    "vue-loader": "^17.4.2",
+    "vue-router": "^4.5.1",
+    "vuex": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.0",
+    "typescript": "^5.2.2",
+    "unplugin-auto-import": "^0.16.7",
+    "unplugin-vue-components": "^0.25.2",
+    "vite": "5.1.2",
+    "vue-tsc": "^1.8.22"
+  }
+}
