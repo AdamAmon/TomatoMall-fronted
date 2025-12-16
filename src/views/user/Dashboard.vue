@@ -210,7 +210,7 @@ getUserInfo();
               <el-icon><ArrowRight /></el-icon>
             </div>
 
-            <div class="action-card" @click="navigateToAdvertisements">
+            <div class="action-card" v-if="role === 'MANAGER'" @click="navigateToAdvertisements">
               <div class="action-icon">
                 <el-icon><ChatLineSquare /></el-icon>
               </div>
