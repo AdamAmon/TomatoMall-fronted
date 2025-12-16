@@ -204,73 +204,76 @@ onMounted(() => {
 
 <style scoped>
 @import url('https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css');
-
 .main-frame {
   width: 100%;
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #6e8efb, #a777e3);
+  background: linear-gradient(135deg, #e53935 0%, #1f2937 100%);
   position: relative;
   overflow: hidden;
+  padding: 24px;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
+  color: #1f2937;
 }
 
 .background-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: url('../../assets/shopping-1s-1084px.svg') center/cover no-repeat;
-  opacity: 0.1;
+  inset: 0;
+  background: url('../../assets/shopping-1s-1084px.svg') center/55% no-repeat;
+  opacity: 0.08;
   z-index: 0;
+  filter: grayscale(1);
 }
 
 .login-card {
-  width: 90%;
-  max-width: 800px;
-  padding: 30px;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  width: 100%;
+  max-width: 880px;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
   z-index: 1;
-  transition: transform 0.3s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .login-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-3px);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.18);
 }
 
 .card-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 26px;
 }
 
 .card-header h1 {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 8px;
+  color: #1f2937;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
 }
 
 .card-header p {
-  font-size: 16px;
-  color: #7f8c8d;
+  font-size: 15px;
+  color: #4b5563;
 }
 
 .custom-form {
-  padding: 0 15px;
+  padding: 0 8px;
 }
 
 .el-form-item {
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .el-form-item :deep(.el-form-item__label) {
   font-weight: 600;
-  color: #34495e;
+  color: #374151;
   padding-bottom: 6px;
 }
 
@@ -280,72 +283,75 @@ onMounted(() => {
 }
 
 .avatar-preview img {
-  width: 80px;
-  height: 80px;
+  width: 82px;
+  height: 82px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #e0e0e0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .form-footer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 20px;
+  margin-top: 14px;
+  gap: 12px;
 }
 
 .register-btn {
   width: 100%;
-  max-width: 300px;
-  height: 45px;
-  font-size: 16px;
-  font-weight: 600;
-  background: linear-gradient(to right, #6e8efb, #a777e3);
+  max-width: 320px;
+  height: 48px;
+  font-size: 15px;
+  font-weight: 700;
+  background: linear-gradient(120deg, #e53935, #ef6c00);
   border: none;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(110, 142, 251, 0.4);
+  border-radius: 12px;
+  transition: all 0.25s ease;
+  box-shadow: 0 12px 26px rgba(229, 57, 53, 0.35);
+  color: #fff;
 }
 
 .register-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(110, 142, 251, 0.6);
+  box-shadow: 0 16px 32px rgba(229, 57, 53, 0.4);
 }
 
 .register-btn:disabled {
-  background: #cccccc;
-  transform: none;
+  background: #e5e7eb;
+  color: #9ca3af;
   box-shadow: none;
+  transform: none;
 }
 
 .login-link {
-  margin-top: 20px;
+  margin-top: 6px;
   font-size: 14px;
-  color: #7f8c8d;
+  color: #4b5563;
 }
 
 .login-link a {
-  color: #6e8efb;
+  color: #e53935;
   text-decoration: none;
   font-weight: 600;
-  transition: color 0.2s;
+  transition: color 0.2s ease;
 }
 
 .login-link a:hover {
-  color: #a777e3;
+  color: #ef6c00;
   text-decoration: underline;
 }
 
 /* 响应式调整 */
 @media (max-width: 768px) {
   .login-card {
-    width: 95%;
-    padding: 20px;
+    width: 96%;
+    padding: 24px 18px;
   }
 
   .card-header h1 {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .register-btn {
