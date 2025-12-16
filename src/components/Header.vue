@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import {router} from '../router'
 import {parseRole} from "../utils"
-import {User, SwitchButton} from "@element-plus/icons-vue"   //图标
+import {User, SwitchButton, ShoppingCart, Goods, Plus, ChatLineSquare, Tickets} from "@element-plus/icons-vue"   //图标
 
 const role = sessionStorage.getItem('role')    //登录的时候插入的
+const isManager = role === 'MANAGER'
 
 //退出登录
 function logout() {
@@ -24,6 +25,14 @@ function logout() {
     router.push({path: "/login"})
   })
 }
+
+// 快捷入口
+const goProductList = () => router.push({ path: '/product/all_product' })
+const goCart = () => router.push({ path: '/cart' })
+const goCreateProduct = () => router.push({ path: '/product/create_product' })
+const goAds = () => router.push({ name: 'AllAdvertisements' })
+const goCreateAds = () => router.push({ name: 'CreateAdvertisement' })
+const goCoupons = () => router.push({ path: '/coupon/all_coupon' })
 </script>
 
 
@@ -35,6 +44,33 @@ function logout() {
         <div class="brand-text">
           <span class="brand-name">蓝鲸书城</span>
           <span class="brand-sub">Bluewhale Bookstore</span>
+        </div>
+      </div>
+
+      <div class="nav-shortcuts">
+        <div class="nav-chip" @click="goProductList">
+          <el-icon><Goods /></el-icon>
+          <span>浏览商品</span>
+        </div>
+        <div class="nav-chip" @click="goCart">
+          <el-icon><ShoppingCart /></el-icon>
+          <span>购物车</span>
+        </div>
+        <div class="nav-chip" v-if="isManager" @click="goCreateProduct">
+          <el-icon><Plus /></el-icon>
+          <span>添加商品</span>
+        </div>
+        <div class="nav-chip" v-if="isManager" @click="goAds">
+          <el-icon><ChatLineSquare /></el-icon>
+          <span>查看广告</span>
+        </div>
+        <div class="nav-chip" v-if="isManager" @click="goCreateAds">
+          <el-icon><Plus /></el-icon>
+          <span>创建广告</span>
+        </div>
+        <div class="nav-chip" @click="goCoupons">
+          <el-icon><Tickets /></el-icon>
+          <span>优惠券</span>
         </div>
       </div>
 
@@ -68,6 +104,37 @@ function logout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.nav-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 12px;
+}
+
+.nav-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+}
+
+.nav-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .brand {
