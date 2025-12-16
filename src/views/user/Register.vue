@@ -81,13 +81,13 @@ onMounted(() => {
     <el-card class="login-card">
       <div class="card-header">
         <h1>创建新账户</h1>
-        <p>加入我们，开始您的管理之旅</p>
+        <p>加入我们，开始您的阅读之旅</p>
       </div>
 
       <el-form label-position="top" class="custom-form">
         <el-row :gutter="20">
           <el-col :md="12" :sm="24">
-            <el-form-item label="真实姓名" :error="!hasInput(name) ? '请输入姓名' : undefined">
+            <el-form-item label="真实姓名*" :error="!hasInput(name) ? '请输入姓名' : undefined">
               <el-input
                   v-model="name"
                   placeholder="请输入真实姓名"
@@ -98,7 +98,7 @@ onMounted(() => {
           </el-col>
 
           <el-col :md="12" :sm="24">
-            <el-form-item label="用户名" :error="!hasInput(username) ? '请输入用户名' : undefined">
+            <el-form-item label="用户名*" :error="!hasInput(username) ? '请输入用户名' : undefined">
               <el-input
                   v-model="username"
                   placeholder="请输入用户名"
@@ -156,7 +156,7 @@ onMounted(() => {
 
         <el-row :gutter="20">
           <el-col :md="12" :sm="24">
-            <el-form-item label="密码" :error="!hasInput(password) ? '请输入密码' : undefined">
+            <el-form-item label="密码*" :error="!hasInput(password) ? '请输入密码' : undefined">
               <el-input
                   type="password"
                   v-model="password"
@@ -169,7 +169,7 @@ onMounted(() => {
 
           <el-col :md="12" :sm="24">
             <el-form-item
-                label="确认密码"
+                label="确认密码*"
                 :error="hasInput(confirmPassword) && !isPasswordIdentical ? '两次密码不一致' : undefined"
             >
               <el-input
@@ -200,6 +200,7 @@ onMounted(() => {
       </el-form>
     </el-card>
   </el-main>
+  <div class="page-footer">Copyright © 2023-2027 502小组 版权所有</div>
 </template>
 
 <style scoped>
@@ -210,10 +211,10 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #e53935 0%, #1f2937 100%);
+  background: linear-gradient(135deg, #e5e7eb 0%, #f8fafc 35%, #e0e7ff 100%);
   position: relative;
   overflow: hidden;
-  padding: 24px;
+  padding: 20px;
   font-family: 'Inter', 'Noto Sans SC', sans-serif;
   color: #1f2937;
 }
@@ -230,19 +231,18 @@ onMounted(() => {
 .login-card {
   width: 100%;
   max-width: 880px;
-  padding: 32px;
+  padding: 24px 22px 20px;
   border-radius: 16px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(8px);
+  box-shadow: 0 16px 45px rgba(15, 23, 42, 0.14);
+  background: #ffffff;
   z-index: 1;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid #eef2f7;
 }
 
 .login-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
 }
 
 .card-header {
@@ -263,12 +263,10 @@ onMounted(() => {
   color: #4b5563;
 }
 
-.custom-form {
-  padding: 0 8px;
-}
+.custom-form { padding: 0 8px; }
 
 .el-form-item {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .el-form-item :deep(.el-form-item__label) {
@@ -291,31 +289,24 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
-.form-footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 14px;
-  gap: 12px;
-}
+.form-footer { display: flex; flex-direction: column; align-items: stretch; margin-top: 14px; gap: 12px; }
 
 .register-btn {
   width: 100%;
-  max-width: 320px;
-  height: 48px;
+  height: 52px;
   font-size: 15px;
   font-weight: 700;
-  background: linear-gradient(120deg, #e53935, #ef6c00);
+  background: linear-gradient(120deg, #2563eb, #1d4ed8);
   border: none;
   border-radius: 12px;
   transition: all 0.25s ease;
-  box-shadow: 0 12px 26px rgba(229, 57, 53, 0.35);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
   color: #fff;
 }
 
 .register-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 32px rgba(229, 57, 53, 0.4);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.34);
 }
 
 .register-btn:disabled {
@@ -329,33 +320,75 @@ onMounted(() => {
   margin-top: 6px;
   font-size: 14px;
   color: #4b5563;
+  text-align: center;
 }
 
 .login-link a {
-  color: #e53935;
+  color: #2563eb;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
 }
 
 .login-link a:hover {
-  color: #ef6c00;
+  color: #1d4ed8;
   text-decoration: underline;
+}
+
+/* 统一输入框高度与风格，保留密码眼睛且不影响宽度 */
+.custom-form :deep(.el-input__wrapper) {
+  height: 52px;
+  padding-right: 44px; /* 为右侧眼睛预留空间，确保各输入宽度一致 */
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  transition: all 0.24s ease;
+}
+
+.custom-form :deep(.el-input__inner) {
+  height: 52px;
+  line-height: 52px;
+  font-size: 15px;
+}
+
+.custom-form :deep(.el-input__suffix) {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  height: 52px;
+}
+
+.custom-form :deep(.el-input__prefix) {
+  color: #2563eb;
 }
 
 /* 响应式调整 */
 @media (max-width: 768px) {
   .login-card {
     width: 96%;
-    padding: 24px 18px;
+    padding: 20px 18px 18px;
   }
 
   .card-header h1 {
     font-size: 26px;
   }
 
-  .register-btn {
-    height: 50px;
-  }
+  .register-btn { height: 52px; }
+}
+
+.page-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7280;
+  opacity: 0.95;
+  pointer-events: none;
 }
 </style>
