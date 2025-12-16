@@ -28,69 +28,125 @@ function logout() {
 
 
 <template>
-  <el-header class="custom-header" height="20">
-    <el-row :gutter="10">
+  <el-header class="custom-header" height="76">
+    <div class="header-inner">
+      <div class="brand" @click="router.push({ path: '/dashboard' })">
+        <div class="brand-mark"><img class="brand-logo" src="/bluewhale.svg" alt="Bluewhale Logo" /></div>
+        <div class="brand-text">
+          <span class="brand-name">蓝鲸书城</span>
+          <span class="brand-sub">Bluewhale Bookstore</span>
+        </div>
+      </div>
 
-      <el-col :span="3" class="header-icon">
-        <router-link to="/dashboard" v-slot="{navigate}" class="no-link">
-          <h1 @click="navigate" class="header-text"> 番茄书城</h1>
-        </router-link>
-      </el-col>
-
-      <el-col :span="2">
+      <div class="header-actions">
         <el-tag class="role-tag" size="large">{{ parseRole(role) }}版</el-tag>
-      </el-col>
-
-      <el-col :span="16">
-      </el-col>
-
-      <el-col :span="1" class="header-icon">
-        <router-link to="/dashboard" v-slot="{navigate}">
-          <el-icon @click="navigate" :size="35" color="white" ><User /></el-icon>
-        </router-link>
-      </el-col>
-
-      <el-col :span="1" class="header-icon">
-        <a @click="logout">
-          <el-icon :size="35" color="white" ><SwitchButton /></el-icon>
-        </a>
-      </el-col>
-    </el-row>
+        <div class="icon-btn" @click="router.push({ path: '/dashboard' })">
+          <el-icon><User /></el-icon>
+        </div>
+        <div class="icon-btn" @click="logout">
+          <el-icon><SwitchButton /></el-icon>
+        </div>
+      </div>
+    </div>
   </el-header>
 </template>
 
 
 <style scoped>
 .custom-header {
-  background-color: #ff0000;
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
-
+  background: linear-gradient(120deg, #2563eb, #1d4ed8);
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  padding: 0 24px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
 }
 
-.no-link {
-  text-decoration: none;
+.header-inner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  color: #fff;
+}
+
+.brand-mark {
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  display: block;
+  object-fit: contain;
+  background: #ffffff; /* 图标背景为白色 */
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.brand-sub {
+  font-size: 12px;
+  opacity: 0.86;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .role-tag {
-  margin-top: 20px;
-  font-size: 20px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
-.header-text {
-  color:white;
-  font-size: x-large;
-  min-width: max-content;
-  margin-top: 15px;
-  margin-bottom: 15px;
-}
-
-.header-icon {
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
-  flex-direction: column;
-  align-items:center;
+  align-items: center;
   justify-content: center;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+}
+
+.icon-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.icon-btn:active {
+  transform: translateY(0);
 }
 </style>

@@ -153,7 +153,7 @@ getUserInfo();
           <el-avatar :src="avatar" :size="80"></el-avatar>
           <div class="user-meta">
             <h1>您好，{{ username }}！</h1>
-            <p>欢迎使用番茄书城</p>
+            <p>欢迎使用蓝鲸书城</p>
           </div>
         </div>
         <div class="vip-info">
