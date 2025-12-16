@@ -248,17 +248,32 @@ getUserInfo();
         <!-- 右侧个人信息区域 -->
         <div class="info-section">
           <div class="section-header">
-            <h2><i class="fas fa-user-circle"></i> 个人信息</h2>
-            <el-button
-                v-if="displayInfoCard"
-                @click="displayInfoCard = false"
-                type="primary"
-                :icon="Edit"
-                plain
-                size="large"
-            >
-              编辑信息
-            </el-button>
+            <h2><i class="fas fa-user-circle"></i> {{ displayInfoCard ? '个人信息' : '编辑个人信息' }}</h2>
+            <template v-if="displayInfoCard">
+              <el-button
+                  @click="displayInfoCard = false"
+                  type="primary"
+                  :icon="Edit"
+                  class="edit-btn"
+              >
+                编辑信息
+              </el-button>
+            </template>
+            <template v-else>
+              <div class="edit-actions">
+                <el-button class="ghost-btn" :icon="ArrowLeft" @click="displayInfoCard = true">
+                  返回
+                </el-button>
+                <el-button
+                    type="primary"
+                    class="header-save"
+                    :disabled="updateDisabled"
+                    @click="updateInfo"
+                >
+                  确认
+                </el-button>
+              </div>
+            </template>
           </div>
 
           <div v-if="displayInfoCard" class="user-info">
@@ -284,13 +299,6 @@ getUserInfo();
           <!-- 编辑表单 -->
           <div v-else class="edit-form">
             <el-form label-position="top">
-              <div class="form-header">
-                <el-button @click="displayInfoCard = true" :icon="ArrowLeft" text size="large" >
-                  返回
-                </el-button>
-                <h3>编辑个人信息</h3>
-              </div>
-
               <el-form-item label="真实姓名">
                 <el-input
                     v-model="newName"
@@ -301,18 +309,6 @@ getUserInfo();
                 />
               </el-form-item>
 
-              <el-form-item label="头像地址">
-                <el-input
-                    v-model="newavatar"
-                    :prefix-icon="Picture"
-                    placeholder="请输入新头像URL"
-                    clearable
-                    size="large"
-                />
-                <div class="avatar-preview" v-if="newavatar">
-                  <img :src="newavatar" alt="头像预览" />
-                </div>
-              </el-form-item>
 
               <el-form-item
                   label="邮箱"
@@ -371,6 +367,7 @@ getUserInfo();
       </div>
     </div>
   </div>
+  <div class="page-footer">Copyright © 2023-2027 502小组 版权所有</div>
 </template>
 
 <style scoped>
@@ -382,26 +379,26 @@ getUserInfo();
 }
 
 :root {
-  --primary: #3498db;
-  --secondary: #1abc9c;
-  --accent: #9b59b6;
+  --primary: #2563eb;
+  --secondary: #1d4ed8;
+  --accent: #38bdf8;
   --danger: #e74c3c;
-  --warning: #f39c12;
-  --success: #2ecc71;
-  --dark: #2c3e50;
-  --light: #f5f7fa;
-  --gray: #7f8c8d;
-  --card-bg: rgba(255, 255, 255, 0.95);
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  --font-large: 18px;
-  --font-xlarge: 20px;
-  --font-xxlarge: 24px;
+  --warning: #f59e0b;
+  --success: #10b981;
+  --dark: #0f172a;
+  --light: #f8fafc;
+  --gray: #64748b;
+  --card-bg: rgba(255, 255, 255, 0.96);
+  --shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+  --font-large: 16px;
+  --font-xlarge: 18px;
+  --font-xxlarge: 22px;
 }
 
 body {
-  background: linear-gradient(135deg, #e0e7ff 0%, #d1e0fd 100%);
+  background: linear-gradient(135deg, #e5e7eb 0%, #f8fafc 35%, #e0e7ff 100%);
   min-height: 100vh;
-  padding: 20px;
+  padding: 16px;
   color: var(--dark);
   overflow-x: hidden;
 }
@@ -409,7 +406,7 @@ body {
 .dashboard-container {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 18px;
 }
 
 .user-header {
@@ -418,10 +415,10 @@ body {
   align-items: center;
   background: var(--card-bg);
   border-radius: 20px;
-  padding: 25px 40px;
-  margin-bottom: 30px;
+  padding: 22px 30px;
+  margin-bottom: 26px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(6px);
   position: relative;
   overflow: hidden;
 }
@@ -448,7 +445,7 @@ body {
 }
 
 .user-meta h1 {
-  font-size: 32px; /* 增大字号 */
+  font-size: 28px;
   margin: 0;
   color: var(--dark);
   font-weight: 700;
@@ -458,7 +455,7 @@ body {
 .user-meta p {
   margin: 0;
   color: var(--gray);
-  font-size: 18px; /* 增大字号 */
+  font-size: 16px;
 }
 
 .vip-info {
@@ -469,13 +466,13 @@ body {
 }
 
 .vip-badge {
-  background: linear-gradient(135deg, #ffd700, #ffa500);
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
   padding: 10px 25px;
   border-radius: 50px;
   font-weight: bold;
-  color: #8b4513;
-  box-shadow: 0 5px 15px rgba(255, 165, 0, 0.3);
-  font-size: 18px; /* 增大字号 */
+  color: #1e3a8a;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18);
+  font-size: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -485,11 +482,11 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 20px; /* 增大字号 */
+  font-size: 16px;
   color: var(--primary);
   font-weight: 600;
-  background: rgba(52, 152, 219, 0.1);
-  padding: 10px 20px;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 10px 18px;
   border-radius: 50px;
 }
 
@@ -497,7 +494,8 @@ body {
 .dashboard-content {
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 30px;
+  gap: 22px;
+  align-items: stretch;
 }
 
 @media (max-width: 1200px) {
@@ -510,9 +508,9 @@ body {
 .quick-actions-section {
   background: var(--card-bg);
   border-radius: 20px;
-  padding: 30px;
+  padding: 22px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(6px);
   position: relative;
   overflow: hidden;
   border: none;
@@ -533,8 +531,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
-  padding-bottom: 20px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
@@ -551,31 +549,31 @@ body {
 .quick-actions-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 15px;
+  gap: 12px;
 }
 
 .action-card {
   display: flex;
   align-items: center;
-  padding: 20px;
-  border-radius: 15px;
-  background: rgba(52, 152, 219, 0.05);
-  transition: all 0.3s ease;
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(37, 99, 235, 0.04);
+  transition: all 0.24s ease;
   cursor: pointer;
-  border: 1px solid rgba(52, 152, 219, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.12);
 }
 
 .action-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  background: rgba(52, 152, 219, 0.1);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .action-icon {
   width: 50px;
   height: 50px;
-  background: rgba(52, 152, 219, 0.1);
-  border-radius: 15px;
+  background: rgba(37, 99, 235, 0.12);
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -604,13 +602,15 @@ body {
 .info-section {
   background: var(--card-bg);
   border-radius: 20px;
-  padding: 35px; /* 增大内边距 */
+  padding: 26px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(6px);
   position: relative;
   overflow: hidden;
   border: none;
-  min-height: 650px; /* 设置最小高度 */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .info-section::before {
@@ -620,46 +620,46 @@ body {
   left: 0;
   width: 100%;
   height: 5px;
-  background: linear-gradient(to right, var(--secondary), var(--accent));
+  background: linear-gradient(to right, var(--primary), var(--accent));
 }
 
-.user-info {
-  padding: 15px 0; /* 增大内边距 */
-}
+.user-info { padding: 12px 0; flex: 1; display: flex; }
 
 /* 增大描述列表的尺寸 */
 .el-descriptions {
   border-radius: 15px;
   overflow: hidden;
-  font-size: var(--font-large); /* 增大字号 */
+  font-size: var(--font-large);
+  width: 100%;
+  height: 100%;
 }
 
 .el-descriptions-item__label {
   font-weight: 600;
-  font-size: var(--font-large); /* 增大字号 */
-  padding: 16px 20px !important; /* 增大内边距 */
+  font-size: var(--font-large);
+  padding: 18px 18px !important;
+  min-height: 72px;
 }
 
 .el-descriptions-item__content {
-  font-size: var(--font-large); /* 增大字号 */
-  padding: 16px 20px !important; /* 增大内边距 */
+  font-size: var(--font-large);
+  padding: 18px 18px !important;
+  min-height: 72px;
 }
 
-.edit-form {
-  padding: 15px 0; /* 增大内边距 */
-}
+.edit-form { padding: 12px 0; }
 
 .form-header {
   display: flex;
   align-items: center;
   gap: 15px;
-  margin-bottom: 25px;
+  margin-bottom: 18px;
 }
 
 .form-header h3 {
   margin: 0;
   color: var(--dark);
-  font-size: 26px; /* 增大字号 */
+  font-size: 22px;
   font-weight: 600;
 }
 
@@ -667,24 +667,31 @@ body {
 .el-form-item__label {
   font-size: var(--font-large) !important;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   display: block;
 }
 
 /* 增大输入框 */
-.el-input {
-  font-size: var(--font-large);
-}
+.el-input { font-size: var(--font-large); }
 
 .el-input__inner {
-  height: 50px !important;
-  padding: 0 15px !important;
+  height: 52px !important;
+  padding: 0 16px 0 44px !important;
   font-size: var(--font-large) !important;
   border-radius: 12px !important;
 }
 
-.el-input__prefix {
-  left: 15px;
+.el-input__prefix { left: 16px; }
+
+.el-input__suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0;
 }
 
 .avatar-preview {
@@ -698,32 +705,91 @@ body {
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--primary);
-  box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+  box-shadow: 0 5px 15px rgba(37, 99, 235, 0.25);
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 15px;
-  margin-top: 35px; /* 增大间距 */
+  margin-top: 24px;
 }
 
 .save-btn {
   background: linear-gradient(to right, var(--primary), var(--secondary));
   border: none;
-  padding: 16px 40px; /* 增大尺寸 */
-  font-weight: bold;
-  transition: all 0.3s ease;
-  color: black;
+  padding: 0 26px;
+  font-weight: 700;
+  transition: all 0.24s ease;
+  color: #fff;
   border-radius: 12px;
-  font-size: 18px; /* 增大字号 */
-  height: auto;
+  font-size: 15px;
+  height: 52px;
 }
 
 .save-btn:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.32);
 }
+
+.edit-btn {
+  height: 42px;
+  border-radius: 12px;
+  padding: 0 18px;
+  font-weight: 700;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.1);
+  transition: all 0.22s ease;
+}
+
+.edit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.16);
+}
+
+.edit-btn:active {
+  transform: translateY(-1px);
+}
+
+.edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ghost-btn {
+  height: 42px;
+  border-radius: 12px;
+  padding: 0 16px;
+  font-weight: 700;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+}
+
+.ghost-btn:hover { box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12); }
+
+.header-save {
+  height: 42px;
+  border-radius: 12px;
+  padding: 0 18px;
+  font-weight: 700;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.1);
+  transition: all 0.22s ease;
+}
+
+.header-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.16);
+}
+
+.header-save:active { transform: translateY(-1px); }
 
 .error-input {
   --el-input-focus-border-color: var(--danger);
@@ -746,31 +812,31 @@ body {
 .circle {
   position: absolute;
   border-radius: 50%;
-  background: rgba(155, 89, 182, 0.05);
+  background: rgba(37, 99, 235, 0.06);
   animation: float 25s infinite ease-in-out;
 }
 
 .circle-1 {
-  width: 400px;
-  height: 400px;
-  top: -200px;
-  left: -200px;
+  width: 320px;
+  height: 320px;
+  top: -160px;
+  left: -160px;
   animation-delay: 0s;
 }
 
 .circle-2 {
-  width: 300px;
-  height: 300px;
-  bottom: -150px;
-  right: -150px;
+  width: 240px;
+  height: 240px;
+  bottom: -120px;
+  right: -120px;
   animation-delay: 5s;
 }
 
 .circle-3 {
-  width: 250px;
-  height: 250px;
+  width: 220px;
+  height: 220px;
   top: 50%;
-  right: 10%;
+  right: 8%;
   animation-delay: 10s;
 }
 
@@ -814,5 +880,17 @@ body {
     font-size: 16px !important;
     padding: 12px 15px !important;
   }
+}
+
+.page-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7280;
+  opacity: 0.95;
+  pointer-events: none;
 }
 </style>
