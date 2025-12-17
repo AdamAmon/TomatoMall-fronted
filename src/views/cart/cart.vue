@@ -129,6 +129,12 @@ export default defineComponent({
       }
     };
 
+    // 处理数量变更（适配 Element Plus 事件形参可为 undefined 的情况）
+    const onQtyChange = (itemId: string, val: number | undefined) => {
+      if (typeof val !== 'number') return;
+      updateQuantity(itemId, val);
+    };
+
     // 修改商品数量
     const updateQuantity = async (itemId: string, quantity: number) => {
       const userId = localStorage.getItem('userId');
@@ -320,6 +326,7 @@ export default defineComponent({
       products,
       deleteItem,
       updateQuantity,
+      onQtyChange,
       totalPrice,
       totalPriceWithVIPDiscount,
       discountedTotalPrice,
@@ -364,13 +371,28 @@ export default defineComponent({
               :key="item.itemId"
               class="product-card"
           >
-            <div class="product-header">
-              <el-avatar :src="products[item.productId]?.cover || ''" :size="80"></el-avatar>
-              <h3>{{ products[item.productId]?.title || '未知商品' }}</h3>
+            <!-- 图片区域，沿用商品列表样式 -->
+            <div class="product-image-container">
+              <el-image
+                  :src="products[item.productId]?.cover"
+                  fit="cover"
+                  class="product-image"
+              >
+                <template #error>
+                  <div class="image-error-placeholder">
+                    <el-icon><picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div v-if="products[item.productId]?.stockpile" class="stock-badge">
+                库存: {{ (products[item.productId]?.stockpile?.amount || 0) - (products[item.productId]?.stockpile?.frozen || 0) - 1 }}
+              </div>
             </div>
 
             <div class="product-info">
-              <p class="description">{{ products[item.productId]?.description || '暂无描述' }}</p>
+              <h3 class="product-title">{{ products[item.productId]?.title || '未知商品' }}</h3>
+
+              <p class="product-description">{{ products[item.productId]?.description || '暂无描述' }}</p>
 
               <div class="price-section">
                 <p class="price">单价: ¥{{ (products[item.productId]?.price || 0).toFixed(2) }}</p>
@@ -385,7 +407,7 @@ export default defineComponent({
                   :min="0"
                   :max="((products[item.productId]?.stockpile?.amount || 1) - (products[item.productId]?.stockpile?.frozen || 0) + (item.quantity) || 1) - 1"
                   label="数量"
-                  @update:modelValue="(value: number) => updateQuantity(item.itemId.toString(), value)"
+                  @update:modelValue="(val) => onQtyChange(item.itemId.toString(), val)"
                   @click.stop
               ></el-input-number>
               <el-button type="danger" @click.stop="deleteItem(item.itemId.toString())">
@@ -519,6 +541,45 @@ export default defineComponent({
   min-width: 0;
 }
 
+/* 对齐商品列表的图片与信息样式 */
+.product-image-container {
+  height: 200px;
+  position: relative;
+  overflow: hidden;
+}
+
+.product-image {
+  transition: transform 0.5s;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.product-card:hover .product-image {
+  transform: scale(1.05);
+}
+
+.image-error-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f7fa;
+  color: #909399;
+}
+
+.stock-badge {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+
 /* 右侧结算区域 */
 .checkout-container {
   width: 360px;
@@ -532,7 +593,8 @@ export default defineComponent({
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 24px;
+  column-gap: 24px;
+  row-gap: 54px; /* 纵向间距与横向一致 */
 }
 
 /* 商品卡片样式 */
@@ -553,38 +615,40 @@ export default defineComponent({
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
-.product-header {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 15px;
-}
-
-.product-header h3 {
-  font-size: 16px;
+/* 标题与描述对齐列表页样式 */
+.product-title {
+  font-size: 15px;
   font-weight: 600;
-  margin: 0;
-  line-height: 1.4;
-  flex: 1;
+  line-height: 1.3;
+  height: 42px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 10px 0 6px;
 }
 
 .product-info {
   flex: 1;
 }
 
-.description {
-  font-size: 13px;
+.product-description {
   color: #666;
-  margin-bottom: 15px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.4;
+  height: 40px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .price-section {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: -30px; /* 减少与下方控件的间距 */
   font-weight: bold;
 }
 
@@ -603,7 +667,6 @@ export default defineComponent({
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-top: auto;
 }
 
 
