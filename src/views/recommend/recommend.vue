@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { ProductInfo } from "../../api/product";
 import { getEverydayRecommend} from "../../api/recommend";
@@ -8,16 +8,10 @@ const router = useRouter();
 const isActive = ref(false);
 const isHovering = ref(false);
 const products = ref<ProductInfo[]>([]);
-const isDragging = ref(false);
-const startX = ref(0);
-const startY = ref(0);
-const startLeft = ref(40);
-const startTop = ref(120);
-const dragOffsetX = ref(0);
-const dragOffsetY = ref(0);
+// 面板固定展开方向（右下角固定，向左上展开）
 const panelDirection = ref({
-  horizontal: 'right', // 水平方向: left/right
-  vertical: 'bottom'   // 垂直方向: top/bottom
+  horizontal: 'left',
+  vertical: 'top'
 });
 
 // 获取推荐商品
@@ -36,56 +30,13 @@ const fetchRecommendProducts = async () => {
 
 // 切换面板显示
 const togglePanel = () => {
-  if (isDragging.value) {
-    isDragging.value = false;
-    return;
-  }
-
-  const wasActive = isActive.value;
   isActive.value = !isActive.value;
-
   if (isActive.value && products.value.length === 0) {
     fetchRecommendProducts();
   }
-
-  // 当面板从关闭状态变为打开状态时，计算位置
-  if (isActive.value && !wasActive) {
-    nextTick(() => {
-      calculatePanelDirection();
-    });
-  }
 };
 
-// 计算面板展开方向
-const calculatePanelDirection = () => {
-  // 获取小球在视口中的位置
-  const ballEl = document.querySelector('.recommend-ball');
-  if (!ballEl) return;
-
-  const ballRect = ballEl.getBoundingClientRect();
-  const windowWidth = window.innerWidth;
-  const windowHeight = window.innerHeight;
-
-  // 计算小球中心点
-  const ballCenterX = ballRect.left + ballRect.width / 2;
-  const ballCenterY = ballRect.top + ballRect.height / 2;
-
-  // 确定水平方向
-  // 小球在窗口右侧1/3区域时向左展开，否则向右展开
-  if (ballCenterX < windowWidth * 2 / 3) {
-    panelDirection.value.horizontal = 'left';
-  } else {
-    panelDirection.value.horizontal = 'right';
-  }
-
-  // 确定垂直方向
-  // 小球在窗口底部1/3区域时向上展开，否则向下展开
-  if (ballCenterY > windowHeight * 2 / 3) {
-    panelDirection.value.vertical = 'top';
-  } else {
-    panelDirection.value.vertical = 'bottom';
-  }
-};
+// 固定位置时无需动态计算展开方向
 
 // 面板悬停事件
 const onPanelEnter = () => isHovering.value = true;
@@ -96,91 +47,23 @@ const viewProduct = (productId: number) => {
   router.push({ name: "SingleProduct", params: { id: productId } });
 };
 
-// 开始拖动
-const startDrag = (e: MouseEvent) => {
-  e.preventDefault();
-  isDragging.value = true;
-  startX.value = e.clientX;
-  startY.value = e.clientY;
-  startLeft.value = parseInt(document.documentElement.style.getPropertyValue('--recommend-ball-left') || "40");
-  startTop.value = parseInt(document.documentElement.style.getPropertyValue('--recommend-ball-top') || "120");
+// 固定位置：不再支持拖动，保留面板开关逻辑
 
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('mouseup', stopDrag);
-};
-
-// 拖动中
-const onDrag = (e: MouseEvent) => {
-  if (!isDragging.value) return;
-
-  dragOffsetX.value = e.clientX - startX.value;
-  dragOffsetY.value = e.clientY - startY.value;
-
-  const left = startLeft.value + dragOffsetX.value;
-  const top = startTop.value + dragOffsetY.value;
-
-  // 限制在视窗范围内
-  const maxLeft = window.innerWidth - 40; // 调整安全边距
-  const maxTop = window.innerHeight - 40;
-
-
-  document.documentElement.style.setProperty(
-      '--recommend-ball-left',
-      `${Math.max(10, Math.min(maxLeft, left))}px`
-  );
-  document.documentElement.style.setProperty(
-      '--recommend-ball-top',
-      `${Math.max(10, Math.min(maxTop, top))}px`
-  );
-};
-
-// 停止拖动
-const stopDrag = () => {
-  isDragging.value = false;
-  dragOffsetX.value = 0;
-  dragOffsetY.value = 0;
-
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', stopDrag);
-};
-
-// 初始化位置变量
-onMounted(() => {
-  // 计算右下角位置
-  const ballSize = 60; // 小球尺寸
-  const margin = 50;   // 与窗口边距
-  const left = window.innerWidth - ballSize - margin;
-  const top = window.innerHeight - ballSize - margin * 2;
-
-  document.documentElement.style.setProperty('--recommend-ball-left', `${left}px`);
-  document.documentElement.style.setProperty('--recommend-ball-top', `${top}px`);
-});
-
-
-// 组件卸载时清理事件监听器
-onUnmounted(() => {
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', stopDrag);
-});
+// 固定位置无需初始化或卸载拖动事件
 </script>
 
 <template>
-  <div
-      class="recommend-container"
-      :style="{
-      left: 'var(--recommend-ball-left)',
-      top: 'var(--recommend-ball-top)',
-    }"
-  >
+  <div class="recommend-container">
     <!-- 推荐悬浮球 -->
     <div
         class="recommend-ball"
         @click="togglePanel"
-        @mousedown="startDrag"
+        role="button"
+        aria-label="每日推荐"
+        title="每日推荐"
         :class="{
         'active': isActive,
-        'dragging': isDragging,
-        'shake': !isActive && !isDragging
+        'shake': !isActive && !isHovering
       }"
     >
       <i class="fas fa-thumbs-up"></i>
@@ -193,7 +76,8 @@ onUnmounted(() => {
         class="recommend-panel"
         :class="[
         `horizontal-${panelDirection.horizontal}`,
-        `vertical-${panelDirection.vertical}`
+        `vertical-${panelDirection.vertical}`,
+        { open: isActive }
       ]"
         @mouseenter="onPanelEnter"
         @mouseleave="onPanelLeave"
@@ -245,21 +129,17 @@ onUnmounted(() => {
 
 .recommend-container {
   position: fixed;
-  right: initial;
-  bottom: initial;
-  left: var(--recommend-ball-left);
-  top: var(--recommend-ball-top);
+  right: 40px;
+  bottom: 90px;
   z-index: 1000;
-  transform: translate(-50%, 50%);
   transition: all 0.3s ease;
-  cursor: move;
 }
 
 /* 推荐悬浮球 */
 .recommend-ball {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -269,18 +149,18 @@ onUnmounted(() => {
   animation: pulse 2s infinite;
   position: relative;
   cursor: grab;
-  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35);
   transition: all 0.3s ease, box-shadow 0.2s;
 }
 
 .recommend-ball:hover {
   transform: scale(1.1);
-  box-shadow: 0 10px 25px rgba(255, 107, 107, 0.6);
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.45);
 }
 
 .recommend-ball.active {
   transform: scale(1.1);
-  box-shadow: 0 10px 25px rgba(255, 107, 107, 0.6);
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5);
 }
 
 /* 推荐面板 - 基础样式 */
@@ -288,13 +168,15 @@ onUnmounted(() => {
   position: absolute;
   width: 320px;
   height: 600px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  border: 1px solid #eef2f7;
+  border-radius: 16px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
   padding: 20px;
   overflow-y: auto;
-  transition: all 0.3s ease;
+  transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
   z-index: 1001;
+  opacity: 0;
 }
 
 /* 水平方向：右侧展开 */
@@ -305,20 +187,22 @@ onUnmounted(() => {
 
 /* 水平方向：左侧展开 */
 .recommend-panel.horizontal-left {
-  left: 0;
-  right: auto;
+  left: auto;
+  right: calc(100% + 10px); /* 完全在容器左侧，留出间距 */
 }
 
 /* 垂直方向：底部展开 */
 .recommend-panel.vertical-bottom {
   top: 100%;
   bottom: auto;
+  transform: translateY(8px);
 }
 
 /* 垂直方向：顶部展开 */
 .recommend-panel.vertical-top {
   bottom: 100%;
   top: auto;
+  transform: translateY(-8px);
 }
 
 /* 为不同方向添加间距 */
@@ -330,12 +214,13 @@ onUnmounted(() => {
   margin-bottom: 10px;
 }
 
-.recommend-panel.horizontal-right {
-  margin-left: 10px;
-}
+.recommend-panel.horizontal-right { margin-left: 10px; }
 
-.recommend-panel.horizontal-left {
-  margin-right: 10px;
+.recommend-panel.horizontal-left { /* 间距已通过 right: calc(100% + 10px) 设置，无需额外 margin */ }
+
+.recommend-panel.open {
+  opacity: 1;
+  transform: translate(0, 0);
 }
 
 .panel-header {
@@ -344,14 +229,15 @@ onUnmounted(() => {
   align-items: center;
   margin-bottom: 15px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #eef2f7;
 }
 
 .product-card {
   background: #fff;
-  border-radius: 10px;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 12px 26px rgba(15,23,42,0.08);
   transition: transform 0.3s, box-shadow 0.3s;
   margin-bottom: 15px;
   cursor: pointer;
@@ -359,7 +245,7 @@ onUnmounted(() => {
 
 .product-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 16px 32px rgba(15,23,42,0.14);
 }
 
 .product-image-container {
@@ -452,16 +338,16 @@ onUnmounted(() => {
 }
 
 .recommend-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f8fafc;
 }
 
 .recommend-list::-webkit-scrollbar-thumb {
-  background: #d3d3d3;
+  background: #d6dae0;
   border-radius: 4px;
 }
 
 .recommend-list::-webkit-scrollbar-thumb:hover {
-  background: #b3b3b3;
+  background: #b8bec6;
 }
 
 .recommend-ball .tag {
@@ -470,8 +356,8 @@ onUnmounted(() => {
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
+  background: rgba(37, 99, 235, 0.8);
+  color: #fff;
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 12px;
