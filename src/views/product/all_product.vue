@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { updateInfo, getAllProducts, getOneProductAmount, searchName,searchByTag,TagEnum } from '../../api/product.ts';
 import { addProductToCart, changeCartItemQuantity, getAllCartItems, getCart } from '../../api/cart.ts';
@@ -42,14 +42,37 @@ const selectedTag = ref<TagEnum | null>(null); // 新增这一行
 const isCollapsedSearch = ref(false);
 const isSearchFocus = ref(false);
 const isPastNav = ref(false);
+const currentPage = ref(1);
+const pageSize = ref(8);// 每页显示8个商品
 
-const SCROLL_THRESHOLD = 140;
+// 独立滚动阈值：搜索与侧边栏互不影响
+// 搜索栏采用折叠/展开双阈值以避免临界点闪烁
+const COLLAPSE_THRESHOLD_SEARCH = 140; // 超过则折叠
+const EXPAND_THRESHOLD_SEARCH = 120;   // 回到此以下才展开
+const SCROLL_THRESHOLD_SIDEBAR = 72;   // 侧边栏贴顶阈值
 
 const handleScroll = () => {
-  const scrolled = window.scrollY > SCROLL_THRESHOLD;
-  isPastNav.value = scrolled;
-  if (isSearchFocus.value && !scrolled) return;
-  isCollapsedSearch.value = scrolled;
+  const y = window.scrollY;
+  const scrolledSidebar = y > SCROLL_THRESHOLD_SIDEBAR;
+
+  // 侧边栏：仅根据自己的阈值决定是否贴顶
+  isPastNav.value = scrolledSidebar;
+
+  // 搜索栏：双阈值避免闪烁；聚焦时在未超过折叠阈值保持展开
+  if (isSearchFocus.value && y < COLLAPSE_THRESHOLD_SEARCH) {
+    isCollapsedSearch.value = false;
+    return;
+  }
+
+  if (!isCollapsedSearch.value && y > COLLAPSE_THRESHOLD_SEARCH) {
+    isCollapsedSearch.value = true;
+  } else if (isCollapsedSearch.value && y < EXPAND_THRESHOLD_SEARCH) {
+    isCollapsedSearch.value = false;
+  }
+};
+
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
 };
 
 const expandSearch = () => {
@@ -82,6 +105,7 @@ const fetchProducts = async () => {
     console.error(err);
   } finally {
     loading.value = false;
+    currentPage.value = 1;
   }
 };
 
@@ -123,6 +147,7 @@ const handleTagSelect = async (tag: TagEnum) => {
     error.value = "请求失败，请稍后再试";
   } finally {
     loading.value = false;
+    currentPage.value = 1;
   }
 };
 
@@ -131,6 +156,7 @@ const handleAllSelect = async () => {
   selectedTag.value = null;
   loading.value = true;
   await fetchProducts();
+  currentPage.value = 1;
 };
 
 const performSearch = async () => {
@@ -154,8 +180,14 @@ const performSearch = async () => {
     loading.value = false;
     isSearchFocus.value = false;
     handleScroll();
+    currentPage.value = 1;
   }
 };
+
+const pagedProducts = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return products.value.slice(start, start + pageSize.value);
+});
 
 // 添加商品到购物车
 const addToCart = async (productId: number, quantity: number) => {
@@ -348,7 +380,7 @@ onUnmounted(() => {
             <!-- 商品网格布局 -->
             <div class="product-grid">
               <div
-                  v-for="product in products"
+                  v-for="product in pagedProducts"
                   :key="product.id"
                   class="product-card"
                   @click="viewProduct(product.id)"
@@ -377,7 +409,6 @@ onUnmounted(() => {
 
                   <div class="product-meta">
                     <div class="product-price">
-                      <span class="price-label">价格:</span>
                       <span class="price-value">¥{{ product.price.toFixed(2) }}</span>
                     </div>
 
@@ -396,28 +427,19 @@ onUnmounted(() => {
                   <p class="product-description">{{ product.description }}</p>
                 </div>
 
-                <!-- 购物车操作 -->
-                <div class="cart-actions" @click.stop>
-                  <el-input-number
-                      v-model="selectedQuantity[product.id]"
-                      :min="0"
-                      :max="(product.stockpile?.amount || 0) - (product.stockpile?.frozen || 0) - 1"
-                      size="small"
-                      controls-position="right"
-                      class="quantity-input"
-                  />
-                  <el-button
-                      type="primary"
-                      size="small"
-                      icon="el-icon-shopping-cart-full"
-                      @click.stop="addToCart(product.id, selectedQuantity[product.id] || 1)"
-                      :disabled="!selectedQuantity[product.id] || selectedQuantity[product.id] === 0"
-                      class="add-cart-btn"
-                  >
-                    加入购物车
-                  </el-button>
-                </div>
               </div>
+            </div>
+
+            <div class="pagination-wrapper" v-if="products.length > pageSize">
+              <el-pagination
+                  background
+                  layout="prev, pager, next"
+                  :current-page="currentPage"
+                  :page-size="pageSize"
+                  :total="products.length"
+                  @current-change="handlePageChange"
+                  hide-on-single-page
+              />
             </div>
 
             <!-- 无商品提示 -->
@@ -612,9 +634,9 @@ onUnmounted(() => {
   box-shadow: none;
   display: flex;
   justify-content: center;
+  align-items: center;
 }
 .search-filter-section.collapsed {
-  padding: 6px 12px;
   justify-content: flex-end;
 }
 
@@ -714,6 +736,12 @@ onUnmounted(() => {
   margin: 0 auto;
 }
 
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0 0;
+}
+
 .section-title {
   font-size: 22px;
   color: #333;
@@ -733,7 +761,7 @@ onUnmounted(() => {
 /* 响应式断点 */
 @media (min-width: 1200px) {
   .product-grid {
-    grid-template-columns: repeat(5, minmax(220px, 1fr));
+    grid-template-columns: repeat(4, minmax(220px, 1fr));
   }
 }
 
@@ -781,7 +809,7 @@ onUnmounted(() => {
 }
 
 .product-image-container {
-  height: 220px;
+  height: 200px;
   position: relative;
   overflow: hidden;
 }
@@ -819,7 +847,7 @@ onUnmounted(() => {
 }
 
 .product-info {
-  padding: 15px;
+  padding: 12px 14px 14px;
 }
 
 .product-title {
@@ -831,7 +859,7 @@ onUnmounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .product-price {
@@ -864,7 +892,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .product-rating {
@@ -872,19 +900,6 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.cart-actions {
-  padding: 0 15px 15px;
-  display: flex;
-  gap: 10px;
-}
-
-.quantity-input {
-  width: 100px;
-}
-
-.add-cart-btn {
-  flex: 1;
-}
 
 .loading-state {
   padding: 50px 0;
