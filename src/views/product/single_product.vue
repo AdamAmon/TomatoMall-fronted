@@ -25,16 +25,27 @@ const stockpile = ref<StockpileVO | null>(null);
 type CommentDisplay = CommentVO & { username?: string; name?: string; avatar?: string };
 const comments = ref<CommentDisplay[]>([]);
 const defaultAvatar = 'https://avatars.githubusercontent.com/u/9919?s=200&v=4';
-const isEditingStockpile = ref(false);
 const newStockpileAmount = ref<number | null>(null);
-const isEditing = ref(false);
-const newItem = ref("");
-const newValue = ref("");
 const selectedQuantity = ref<{ [key: number]: number }>({});
 const loading = ref(true);
 const error = ref<string | null>(null);
 const commentContent = ref("");
 const commentRate = ref(5);
+
+// 弹窗与表单状态
+const showEditProductDialog = ref(false);
+const showEditStockDialog = ref(false);
+const editProductForm = ref({
+  title: '',
+  price: 0,
+  rate: 0,
+  description: '',
+  cover: '',
+  detail: '',
+  specifications: [] as Array<{ id?: number; productId?: number; item: string; value: string }>,
+});
+const newSpecItemDialog = ref('');
+const newSpecValueDialog = ref('');
 
 // 计算属性
 const availableStock = computed(() => {
@@ -77,28 +88,6 @@ const fetchProductComments = async () => {
   }
 };
 
-// 删除规格项
-const removeSpecification = (index: number) => {
-  if (product.value.specifications) {
-    product.value.specifications.splice(index, 1);
-  }
-};
-
-// 添加新规格
-const addNewSpecification = () => {
-  if (!newItem.value || !newValue.value) {
-    ElMessage.warning("请输入规格名称和规格值");
-    return;
-  }
-
-  if (!product.value.specifications) {
-    product.value.specifications = [];
-  }
-
-  product.value.specifications.push({ item: newItem.value, value: newValue.value });
-  newItem.value = "";
-  newValue.value = "";
-};
 
 // 获取商品库存信息
 const fetchProductStockpile = async () => {
@@ -116,9 +105,42 @@ const fetchProductStockpile = async () => {
   }
 };
 
-// 切换编辑模式
-const toggleEditMode = () => {
-  isEditing.value = !isEditing.value;
+// 页面内联编辑模式已移除，改用弹窗
+
+// 打开商品编辑弹窗
+const openProductEdit = () => {
+  if (!product.value) return;
+  showEditProductDialog.value = true;
+  editProductForm.value = {
+    title: product.value.title ?? '',
+    price: product.value.price ?? 0,
+    rate: product.value.rate ?? 0,
+    description: product.value.description ?? '',
+    cover: product.value.cover ?? '',
+    detail: product.value.detail ?? '',
+    specifications: (product.value.specifications || []).map((s: any) => ({
+      id: s.id ?? 0,
+      productId: s.productId ?? Number(route.params.id),
+      item: s.item ?? '',
+      value: s.value ?? '',
+    })),
+  };
+};
+
+// 在弹窗中添加规格项
+const addSpecInDialog = () => {
+  if (!newSpecItemDialog.value || !newSpecValueDialog.value) {
+    ElMessage.warning('请输入规格名称和规格值');
+    return;
+  }
+  editProductForm.value.specifications.push({ item: newSpecItemDialog.value, value: newSpecValueDialog.value });
+  newSpecItemDialog.value = '';
+  newSpecValueDialog.value = '';
+};
+
+// 在弹窗中删除规格项
+const removeSpecInDialog = (index: number) => {
+  editProductForm.value.specifications.splice(index, 1);
 };
 
 // 更新商品信息
@@ -127,22 +149,29 @@ const saveProductInfo = async () => {
     if (!product.value) return;
 
     const productId = route.params.id as string;
+    const pidNum = Number(productId);
+    const specs = editProductForm.value.specifications.map((s) => ({
+      id: s.id ?? 0,
+      productId: s.productId ?? pidNum,
+      item: s.item,
+      value: s.value,
+    }));
     const updatedProduct = {
-      id: Number(productId),
-      title: product.value.title,
-      price: product.value.price,
-      rate: product.value.rate,
-      description: product.value.description,
-      cover: product.value.cover,
-      detail: product.value.detail,
-      specifications: product.value.specifications,
+      id: pidNum,
+      title: editProductForm.value.title,
+      price: editProductForm.value.price,
+      rate: editProductForm.value.rate,
+      description: editProductForm.value.description,
+      cover: editProductForm.value.cover,
+      detail: editProductForm.value.detail,
+      specifications: specs,
       stockpile: product.value.stockpile,
       recommend: product.value.recommendTicket,
     };
 
     await updateProduct(updatedProduct);
     ElMessage.success("商品信息更新成功！");
-    isEditing.value = false;
+    showEditProductDialog.value = false;
     await fetchProductDetails();
   } catch (err) {
     console.error("更新商品信息失败:", err);
@@ -163,13 +192,20 @@ const deletepro = async () => {
   }
 };
 
-// 更新库存数量
-const saveStockpileAmount = async () => {
+// 页面内联库存编辑已移除，改用弹窗
+
+// 打开库存编辑弹窗
+const openStockEdit = () => {
+  showEditStockDialog.value = true;
+  newStockpileAmount.value = stockpile.value?.amount ?? 0;
+};
+
+// 在弹窗中确认库存编辑
+const confirmStockEdit = async () => {
   if (newStockpileAmount.value == null || newStockpileAmount.value < 0) {
-    ElMessage.warning("请输入有效的库存数量");
+    ElMessage.warning('请输入有效的库存数量');
     return;
   }
-
   try {
     const productId = route.params.id as string;
     const pid = parseInt(productId, 10);
@@ -186,18 +222,11 @@ const saveStockpileAmount = async () => {
       stockpile.value.amount = newStockpileAmount.value;
     }
 
-    isEditingStockpile.value = false;
-    ElMessage.success("库存更新成功");
+    showEditStockDialog.value = false;
+    ElMessage.success('库存更新成功');
   } catch (err) {
-    console.error("更新库存失败:", err);
-    ElMessage.error("更新库存失败");
-  }
-};
-
-const toggleEditStockpile = () => {
-  isEditingStockpile.value = !isEditingStockpile.value;
-  if (isEditingStockpile.value && stockpile.value) {
-    newStockpileAmount.value = stockpile.value.amount;
+    console.error('更新库存失败:', err);
+    ElMessage.error('更新库存失败');
   }
 };
 
@@ -329,16 +358,14 @@ onMounted(async () => {
 
   <template>
     <div class="product-detail-container">
-      <!-- 背景层 -->
-      <div class="background-layer"></div>
+      <!-- 背景层移除，保持与其他页面一致的默认背景 -->
 
       <!-- 主要内容 -->
       <div v-if="!loading && !error" class="elegant-product-detail">
         <!-- 顶部：标题与返回 -->
         <div class="pd-header">
           <div class="pd-header-left">
-            <h1 v-if="!isEditing" class="pd-title">{{ product?.title }}</h1>
-            <el-input v-else v-model="product.title" placeholder="请输入商品标题" class="pd-title-input" />
+            <h1 class="pd-title">{{ product?.title }}</h1>
           </div>
           <div class="pd-header-right">
             <el-button class="btn ghost" @click="goBack" icon="el-icon-back">返回列表</el-button>
@@ -361,7 +388,7 @@ onMounted(async () => {
                 <el-icon><Star /></el-icon>
                 <span>推荐票</span>
                 <strong>{{ product?.recommendTicket || 0 }}</strong>
-                <el-button class="btn primary small" @click="recommend(product?.id)" icon="el-icon-star-on">打赏</el-button>
+                <el-button class="btn reward small" @click="recommend(product?.id)" icon="el-icon-star-on">打赏</el-button>
               </div>
               <div class="recommend-hint">
                 <el-icon><InfoFilled /></el-icon>
@@ -407,23 +434,71 @@ onMounted(async () => {
                 />
               </div>
               <div class="actions">
-                <el-button class="btn primary" @click="addToCart(product?.id, selectedQuantity[product?.id] || 1)" icon="el-icon-shopping-cart-full">加入购物车</el-button>
-                <el-button class="btn" v-if="role === 'MANAGER'" @click="toggleEditMode" icon="el-icon-edit">编辑商品信息</el-button>
+                <el-button class="btn buy" @click="addToCart(product?.id, selectedQuantity[product?.id] || 1)" icon="el-icon-shopping-cart-full">加入购物车</el-button>
               </div>
             </div>
 
             <div class="admin-block" v-if="role === 'MANAGER'">
               <div class="admin-row">
-                <el-button class="btn warn" @click="toggleEditStockpile" :icon="isEditingStockpile ? 'el-icon-close' : 'el-icon-edit'">{{ isEditingStockpile ? '取消编辑库存' : '编辑库存' }}</el-button>
+                <el-button class="btn warn" @click="openProductEdit" icon="el-icon-edit">编辑商品信息</el-button>
+                <el-button class="btn warn" @click="openStockEdit" icon="el-icon-edit">编辑库存</el-button>
                 <el-button class="btn danger" @click="deletepro" icon="el-icon-delete">删除商品</el-button>
-                <el-button class="btn success" v-if="isEditing" @click="saveProductInfo" icon="el-icon-check">保存商品信息</el-button>
-                <el-button class="btn" v-if="isEditing" @click="toggleEditMode" icon="el-icon-close">取消编辑</el-button>
-              </div>
-              <div class="stock-edit" v-if="isEditingStockpile">
-                <el-input-number v-model="newStockpileAmount" :min="0" controls-position="right" />
-                <el-button class="btn primary" @click="saveStockpileAmount" icon="el-icon-check">保存库存</el-button>
               </div>
             </div>
+
+            <!-- 商品编辑弹窗 -->
+            <el-dialog v-model="showEditProductDialog" title="编辑商品信息" width="600px">
+              <el-form label-width="90px">
+                <el-form-item label="标题">
+                  <el-input v-model="editProductForm.title" placeholder="请输入商品标题" />
+                </el-form-item>
+                <el-form-item label="价格">
+                  <el-input-number v-model="editProductForm.price" :min="0" :step="0.01" controls-position="right" />
+                </el-form-item>
+                <el-form-item label="评分">
+                  <el-rate v-model="editProductForm.rate" :max="5" />
+                </el-form-item>
+                <el-form-item label="介绍">
+                  <el-input type="textarea" v-model="editProductForm.description" :rows="4" placeholder="请输入商品介绍" />
+                </el-form-item>
+
+                <div class="spec-edit">
+                  <div class="spec-grid">
+                    <div v-for="(spec, index) in editProductForm.specifications" :key="index" class="spec-item">
+                      <el-input v-model="spec.item" placeholder="规格名称" size="small" />
+                      <el-input v-model="spec.value" placeholder="规格值" size="small" />
+                      <el-button class="btn danger small" @click="removeSpecInDialog(index)" icon="el-icon-delete">删除</el-button>
+                    </div>
+                  </div>
+                  <div class="add-spec">
+                    <el-input v-model="newSpecItemDialog" placeholder="规格名称" size="small" />
+                    <el-input v-model="newSpecValueDialog" placeholder="规格值" size="small" />
+                    <el-button class="btn primary" @click="addSpecInDialog" icon="el-icon-plus">添加规格</el-button>
+                  </div>
+                </div>
+              </el-form>
+              <template #footer>
+                <span>
+                  <el-button @click="showEditProductDialog = false">取消</el-button>
+                  <el-button type="primary" @click="saveProductInfo">保存</el-button>
+                </span>
+              </template>
+            </el-dialog>
+
+            <!-- 库存编辑弹窗 -->
+            <el-dialog v-model="showEditStockDialog" title="编辑库存" width="400px">
+              <el-form label-width="90px">
+                <el-form-item label="库存数量">
+                  <el-input-number v-model="newStockpileAmount" :min="0" controls-position="right" />
+                </el-form-item>
+              </el-form>
+              <template #footer>
+                <span>
+                  <el-button @click="showEditStockDialog = false">取消</el-button>
+                  <el-button type="primary" @click="confirmStockEdit">保存</el-button>
+                </span>
+              </template>
+            </el-dialog>
           </div>
         </div>
 
@@ -432,23 +507,7 @@ onMounted(async () => {
           <el-tabs type="border-card">
             
             <el-tab-pane label="规格参数">
-              <!-- 规格编辑区域 -->
-              <div v-if="isEditing" class="spec-edit">
-                <div class="spec-grid">
-                  <div v-for="(spec, index) in product.specifications" :key="index" class="spec-item">
-                    <el-input v-model="spec.item" placeholder="规格名称" size="small" />
-                    <el-input v-model="spec.value" placeholder="规格值" size="small" />
-                    <el-button class="btn danger small" @click="removeSpecification(index)" icon="el-icon-delete">删除</el-button>
-                  </div>
-                </div>
-                <div class="add-spec">
-                  <el-input v-model="newItem" placeholder="规格名称" size="small" />
-                  <el-input v-model="newValue" placeholder="规格值" size="small" />
-                  <el-button class="btn primary" @click="addNewSpecification" icon="el-icon-plus">添加规格</el-button>
-                </div>
-              </div>
-              <!-- 规格显示区域 -->
-              <div v-else>
+              <div>
                 <div v-if="product?.specifications && product.specifications.length" class="spec-grid">
                   <div v-for="(spec, index) in product.specifications" :key="index" class="spec-item">
                     <div class="spec-name">{{ spec.item }}</div>
@@ -516,18 +575,7 @@ onMounted(async () => {
 }
 
 /* 背景层 */
-.background-layer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=2070&auto=format&fit=crop');
-  background-size: cover;
-  background-position: center;
-  filter: blur(3px) brightness(0.7);
-  z-index: -1;
-}
+/* 使用默认页面背景，不再覆盖背景图片 */
 
 .elegant-product-detail {
   position: relative;
@@ -577,6 +625,24 @@ onMounted(async () => {
 .btn.primary {
   background: linear-gradient(120deg, #2563eb, #1d4ed8);
   color: #fff;
+}
+
+/* 商城风格：加入购物车按钮（暖橙色） */
+.btn.buy {
+  background: linear-gradient(135deg, #ffb300, #ff6f00);
+  color: #fff;
+}
+.btn.buy:hover {
+  filter: brightness(1.05);
+}
+
+/* 商城风格：打赏按钮（热烈红色） */
+.btn.reward {
+  background: linear-gradient(135deg, #ff4d4f, #ff7a45);
+  color: #fff;
+}
+.btn.reward:hover {
+  filter: brightness(1.05);
 }
 
 .btn.ghost {
@@ -747,6 +813,7 @@ onMounted(async () => {
   grid-template-columns: 260px 1fr;
   gap: 16px;
   align-items: center;
+  margin-top: auto; /* 固定在右侧信息卡片底部 */
 }
 
 .qty {
@@ -807,7 +874,7 @@ onMounted(async () => {
 .desc {
   color: #4b5563;
   line-height: 1.8;
-  font-size: 16px;
+  font-size: 22px;
   padding: 10px 0;
 }
 
