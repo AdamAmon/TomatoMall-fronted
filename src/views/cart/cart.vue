@@ -5,7 +5,7 @@ import { getCart, getAllCartItems, deleteCartItem, changeCartItemQuantity, CartI
 import { getOneProduct, ProductInfo, updateAmount, getOneProductAmount } from '../../api/product';
 import { createOrder, getOrderDetails } from '../../api/orders';
 import { getAllCoupons, CouponVO } from '../../api/coupon.ts';
-import { ElMessage, ElTable, ElTableColumn, ElTag, ElScrollbar } from 'element-plus';
+import { ElMessage, ElTable, ElTableColumn, ElTag, ElScrollbar, ElPagination } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { userInfo } from "../../api/account.ts";
 
@@ -15,7 +15,8 @@ export default defineComponent({
     ElTable,
     ElTableColumn,
     ElTag,
-    ElScrollbar
+    ElScrollbar,
+    ElPagination
   },
   setup() {
     const cartItems = ref<CartItemInfo[]>([]);
@@ -30,6 +31,8 @@ export default defineComponent({
     const selectedCoupon = ref<CouponVO | null>(null);
     const loadingCoupons = ref(true);
     const errorCoupons = ref<string | null>(null);
+    const currentPage = ref(1);
+    const pageSize = 6;
 
     // vip相关内容
     const vip = ref('')
@@ -210,6 +213,19 @@ export default defineComponent({
       return price;
     });
 
+    const filteredItems = computed(() => cartItems.value.filter(item => products.value[item.productId]));
+
+    const totalPages = computed(() => Math.max(1, Math.ceil(filteredItems.value.length / pageSize)));
+
+    const pagedItems = computed(() => {
+      const start = (currentPage.value - 1) * pageSize;
+      return filteredItems.value.slice(start, start + pageSize);
+    });
+
+    const handlePageChange = (page: number) => {
+      currentPage.value = page;
+    };
+
     // 选择优惠券
     const selectCoupon = (coupon: CouponVO | null) => {
       //取消选择
@@ -327,7 +343,13 @@ export default defineComponent({
       errorCoupons,
       selectedCoupon,
       selectCoupon,
-      vip
+      vip,
+      pagedItems,
+      totalPages,
+      handlePageChange,
+      currentPage,
+      pageSize,
+      filteredItems
     };
   },
 });
@@ -352,7 +374,7 @@ export default defineComponent({
       <div class="products-container">
         <div class="product-grid">
           <div
-              v-for="item in cartItems.filter(item => products[item.productId])"
+              v-for="item in pagedItems"
               :key="item.itemId"
               class="product-card"
           >
@@ -400,6 +422,16 @@ export default defineComponent({
               </el-button>
             </div>
           </div>
+        </div>
+        <div v-if="totalPages > 1" class="product-pagination">
+          <el-pagination
+              background
+              layout="prev, pager, next"
+              :page-size="pageSize"
+              :current-page="currentPage"
+              :total="filteredItems.length"
+              @current-change="handlePageChange"
+          />
         </div>
       </div>
 
@@ -520,7 +552,7 @@ export default defineComponent({
 
 /* 对齐商品列表的图片与信息样式 */
 .product-image-container {
-  height: 200px;
+  height: 180px;
   position: relative;
   overflow: hidden;
 }
@@ -562,7 +594,11 @@ export default defineComponent({
   width: 360px;
   flex-shrink: 0;
   position: sticky;
-  top: 20px;
+  top: 0; /* 贴住视口顶部，随页面滚动保持在视口内 */
+  height: 100vh; /* 始终占满视口高度，避免受左侧内容高度影响 */
+  display: flex; /* 使用 Flex 垂直居中内部卡片 */
+  flex-direction: column;
+  justify-content: center; /* 将结算卡片垂直居中到视口中部 */
   align-self: flex-start;
 }
 
@@ -571,7 +607,7 @@ export default defineComponent({
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   column-gap: 24px;
-  row-gap: 54px; /* 纵向间距与横向一致 */
+  row-gap: 32px; /* 纵向间距收紧 */
 }
 
 /* 商品卡片样式 */
@@ -584,7 +620,7 @@ export default defineComponent({
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 15px;
+  padding: 12px;
 }
 
 .product-card:hover {
@@ -597,13 +633,13 @@ export default defineComponent({
   font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
-  height: 42px;
+  height: 40px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin: 10px 0 6px;
+  margin: 4px 0 3px;
 }
 
 .product-info {
@@ -614,18 +650,19 @@ export default defineComponent({
   color: #666;
   font-size: 13px;
   line-height: 1.4;
-  height: 40px;
+  height: 36px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  margin: 0 0 4px;
 }
 
 .price-section {
   display: flex;
   justify-content: space-between;
-  margin-bottom: -30px; /* 减少与下方控件的间距 */
+  margin-bottom: -20px; /* 再收紧与下方控件的间距 */
   font-weight: bold;
 }
 
@@ -643,7 +680,8 @@ export default defineComponent({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  margin-top: 0;
 }
 
 
@@ -653,6 +691,7 @@ export default defineComponent({
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   padding: 24px;
+  transform: translateY(-100px); /* 轻微上移，使位置略高于正中 */
 }
 
 .checkout-header {
@@ -765,6 +804,12 @@ export default defineComponent({
   font-size: 12px;
   color: #666;
   margin-top: 5px;
+}
+
+.product-pagination {
+  margin-top: 48px;
+  display: flex;
+  justify-content: center;
 }
 
 .payment-section {
@@ -905,7 +950,15 @@ export default defineComponent({
     width: 100%;
     position: relative;
     top: 0;
+    transform: none;
+    height: auto; /* 移动端不强制视口高度 */
+    display: block; /* 还原普通文档流 */
     margin-top: 30px;
+  }
+
+  /* 移动端不需要上移偏移 */
+  .checkout-card {
+    transform: none;
   }
 }
 

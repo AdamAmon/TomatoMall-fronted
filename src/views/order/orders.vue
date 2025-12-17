@@ -23,6 +23,8 @@ export default defineComponent({
     const couponId = localStorage.getItem('couponId') || null;
     const intervalId = ref<number | null>(null);
     const username = ref(localStorage.getItem('username') || '用户');
+    const currentPage = ref(1);
+    const pageSize = 6;
 
     // 计算状态类名
     const statusClass = computed(() => {
@@ -31,6 +33,19 @@ export default defineComponent({
           ? 'status-success'
           : 'status-pending';
     });
+
+    const filteredItems = computed(() => cartItems.value.filter(item => products.value[item.productId]));
+
+    const totalPages = computed(() => Math.max(1, Math.ceil(filteredItems.value.length / pageSize)));
+
+    const pagedItems = computed(() => {
+      const start = (currentPage.value - 1) * pageSize;
+      return filteredItems.value.slice(start, start + pageSize);
+    });
+
+    const handlePageChange = (page: number) => {
+      currentPage.value = page;
+    };
 
     const fetchOrderDetails = async () => {
       try {
@@ -167,7 +182,13 @@ export default defineComponent({
       fetchOrderDetails, // 添加缺失的导出
       username,
       cartItems,
-      products
+      products,
+      pagedItems,
+      totalPages,
+      handlePageChange,
+      currentPage,
+      pageSize,
+      filteredItems
     };
   },
 });
@@ -198,9 +219,9 @@ export default defineComponent({
             <h3>购买商品</h3>
             <p class="panel-subtitle">下单商品列表</p>
           </div>
-          <div v-if="cartItems.filter(item => products[item.productId]).length" class="product-grid">
+          <div v-if="pagedItems.length" class="product-grid">
             <div
-                v-for="item in cartItems.filter(item => products[item.productId])"
+                v-for="item in pagedItems"
                 :key="item.itemId"
                 class="product-card"
             >
@@ -226,6 +247,17 @@ export default defineComponent({
           </div>
           <div v-else class="empty-products">
             <p>暂无商品信息</p>
+          </div>
+
+          <div v-if="totalPages > 1" class="product-pagination">
+            <el-pagination
+                background
+                layout="prev, pager, next"
+                :page-size="pageSize"
+                :current-page="currentPage"
+                :total="filteredItems.length"
+                @current-change="handlePageChange"
+            />
           </div>
         </div>
 
@@ -398,14 +430,16 @@ export default defineComponent({
 }
 
 .payment-layout {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr 340px; /* 固定右侧列宽，左侧自适应 */
+  column-gap: 24px;
+  align-items: start;
 }
 
 .products-panel {
   flex: 1;
   min-width: 0;
+  width: 100%; /* 避免与右侧列互动导致宽度变化 */
 }
 
 .panel-header {
@@ -430,7 +464,7 @@ export default defineComponent({
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, minmax(260px, 1fr)); /* 固定三列，卡片宽度稳定 */
   gap: 24px;
 }
 
@@ -532,15 +566,24 @@ export default defineComponent({
   color: #888;
 }
 
+.product-pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
 .info-panel {
-  width: 340px;
-  flex-shrink: 0;
+  width: 100%;
+  max-width: 340px;
   position: sticky;
-  top: 50vh;
-  transform: translateY(-50%);
+  top: 0; /* 贴住视口顶部 */
+  height: 100vh; /* 占满视口高度，避免随左侧高度变化漂移 */
   display: flex;
   flex-direction: column;
+  justify-content: center; /* 垂直居中内部卡片 */
+  transform: translateY(-100px); /* 略微上移，位置更贴近视觉中心 */
   gap: 16px;
+  margin-left: auto; /* 锁定在右侧列 */
 }
 
 .summary-card,
@@ -700,13 +743,20 @@ export default defineComponent({
 /* 响应式调整 */
 @media (max-width: 1100px) {
   .payment-layout {
+    display: flex;
     flex-direction: column;
+  }
+
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* 窄屏自适应列数 */
   }
 
   .info-panel {
     position: static;
     width: 100%;
     transform: none;
+    height: auto; /* 移动端还原高度 */
+    justify-content: flex-start; /* 移动端不强制居中 */
   }
 }
 
