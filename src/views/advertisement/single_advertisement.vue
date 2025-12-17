@@ -334,10 +334,12 @@ body {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   transition: var(--transition);
   font-size: 1rem;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  text-align: center;
 }
 
 .btn-primary {

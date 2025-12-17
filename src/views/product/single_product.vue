@@ -368,7 +368,7 @@ onMounted(async () => {
             <h1 class="pd-title">{{ product?.title }}</h1>
           </div>
           <div class="pd-header-right">
-            <el-button class="btn ghost" @click="goBack" icon="el-icon-back">返回列表</el-button>
+            <el-button class="btn ghost" @click="goBack">返回列表</el-button>
           </div>
         </div>
 
@@ -388,7 +388,7 @@ onMounted(async () => {
                 <el-icon><Star /></el-icon>
                 <span>推荐票</span>
                 <strong>{{ product?.recommendTicket || 0 }}</strong>
-                <el-button class="btn reward small" @click="recommend(product?.id)" icon="el-icon-star-on">打赏</el-button>
+                <el-button class="btn reward small" @click="recommend(product?.id)">打赏</el-button>
               </div>
               <div class="recommend-hint">
                 <el-icon><InfoFilled /></el-icon>
@@ -434,15 +434,15 @@ onMounted(async () => {
                 />
               </div>
               <div class="actions">
-                <el-button class="btn buy" @click="addToCart(product?.id, selectedQuantity[product?.id] || 1)" icon="el-icon-shopping-cart-full">加入购物车</el-button>
+                <el-button class="btn buy" @click="addToCart(product?.id, selectedQuantity[product?.id] || 1)">加入购物车</el-button>
               </div>
             </div>
 
             <div class="admin-block" v-if="role === 'MANAGER'">
               <div class="admin-row">
-                <el-button class="btn warn" @click="openProductEdit" icon="el-icon-edit">编辑商品信息</el-button>
-                <el-button class="btn warn" @click="openStockEdit" icon="el-icon-edit">编辑库存</el-button>
-                <el-button class="btn danger" @click="deletepro" icon="el-icon-delete">删除商品</el-button>
+                <el-button class="btn warn" @click="openProductEdit">编辑商品信息</el-button>
+                <el-button class="btn warn" @click="openStockEdit">编辑库存</el-button>
+                <el-button class="btn danger" @click="deletepro">删除商品</el-button>
               </div>
             </div>
 
@@ -467,13 +467,13 @@ onMounted(async () => {
                     <div v-for="(spec, index) in editProductForm.specifications" :key="index" class="spec-item">
                       <el-input v-model="spec.item" placeholder="规格名称" size="small" />
                       <el-input v-model="spec.value" placeholder="规格值" size="small" />
-                      <el-button class="btn danger small" @click="removeSpecInDialog(index)" icon="el-icon-delete">删除</el-button>
+                      <el-button class="btn danger small" @click="removeSpecInDialog(index)">删除</el-button>
                     </div>
                   </div>
                   <div class="add-spec">
                     <el-input v-model="newSpecItemDialog" placeholder="规格名称" size="small" />
                     <el-input v-model="newSpecValueDialog" placeholder="规格值" size="small" />
-                    <el-button class="btn primary" @click="addSpecInDialog" icon="el-icon-plus">添加规格</el-button>
+                    <el-button class="btn primary" @click="addSpecInDialog">添加规格</el-button>
                   </div>
                 </div>
               </el-form>
@@ -526,7 +526,7 @@ onMounted(async () => {
                     <el-avatar :size="40" :src="comment.avatar || defaultAvatar"></el-avatar>
                     <strong class="username">{{ comment.username || comment.name || '用户'}}</strong>
                   </div>
-                  <el-button class="btn danger small" v-if="role === 'MANAGER'" @click="handleDeleteComment(comment.id.toString())" icon="el-icon-delete">删除</el-button>
+                  <el-button class="btn danger small" v-if="role === 'MANAGER'" @click="handleDeleteComment(comment.id.toString())">删除</el-button>
                 </div>
                 <div class="comment-rating">
                   <el-rate v-model="comment.rate" disabled :max="5" />
@@ -539,7 +539,7 @@ onMounted(async () => {
                 <h3 class="section-subtitle">发表评论</h3>
                 <el-rate v-model="commentRate" :max="5" class="comment-rate"></el-rate>
                 <el-input type="textarea" v-model="commentContent" placeholder="请分享您的使用体验..." :rows="4" class="comment-textarea"></el-input>
-                <el-button class="btn primary" @click="postComment" icon="el-icon-chat-line-round">提交评论</el-button>
+                <el-button class="btn primary" @click="postComment">提交评论</el-button>
               </div>
             </el-tab-pane>
           </el-tabs>
@@ -615,6 +615,10 @@ onMounted(async () => {
   border: none;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .btn:hover {
