@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   getOneProduct,
@@ -14,7 +14,7 @@ import {
 import { addProductToCart, changeCartItemQuantity, getAllCartItems, getCart } from '../../api/cart.ts';
 import { ElMessage,} from 'element-plus';
 import { makeComment, deleteComment,useRecommendTicket } from "../../api/account.ts";
-import { Star, InfoFilled } from '@element-plus/icons-vue'
+import { Star, InfoFilled, Loading, Warning } from '@element-plus/icons-vue'
 const route = useRoute();
 const router = useRouter();
 const role = sessionStorage.getItem("role");
@@ -22,7 +22,9 @@ const role = sessionStorage.getItem("role");
 // 商品基本信息
 const product = ref<any | null>(null);
 const stockpile = ref<StockpileVO | null>(null);
-const comments = ref<CommentVO[]>([]);
+type CommentDisplay = CommentVO & { username?: string; name?: string; avatar?: string };
+const comments = ref<CommentDisplay[]>([]);
+const defaultAvatar = 'https://avatars.githubusercontent.com/u/9919?s=200&v=4';
 const isEditingStockpile = ref(false);
 const newStockpileAmount = ref<number | null>(null);
 const isEditing = ref(false);
@@ -33,6 +35,15 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const commentContent = ref("");
 const commentRate = ref(5);
+
+// 计算属性
+const availableStock = computed(() => {
+  const amt = stockpile.value?.amount ?? 0;
+  const frozen = stockpile.value?.frozen ?? 0;
+  return Math.max(0, amt - frozen - 1);
+});
+
+const formattedRate = computed(() => Number(product.value?.rate ?? 0).toFixed(2));
 
 // 获取商品基本信息
 const fetchProductDetails = async () => {
@@ -234,7 +245,7 @@ const checkQuantity = (quantity: number): boolean => {
   return true;
 };
 
-// 返回商品列表
+// 返回列表
 const goBack = () => {
   router.push({ path: "/product/all_product" });
 };
@@ -242,433 +253,253 @@ const goBack = () => {
 // 发表评论
 const postComment = async () => {
   try {
-    const userId = parseInt(localStorage.getItem('userId') || '0');
-    if (userId <= 0) {
-      throw new Error('用户未登录或用户ID无效');
+    const userId = localStorage.getItem('userId') || '';
+    if (!userId) {
+      ElMessage.error('请先登录再发表评论');
+      return;
     }
-
     const productId = route.params.id as string;
+    if (!commentContent.value.trim()) {
+      ElMessage.warning('请输入评论内容');
+      return;
+    }
     await makeComment(userId.toString(), productId, commentContent.value, commentRate.value);
-    ElMessage.success('评论成功');
-    commentContent.value = "";
+    ElMessage.success('评论已提交');
+    commentContent.value = '';
     commentRate.value = 5;
     await fetchProductComments();
-  } catch (error) {
-    console.error('发表评论失败:', error);
+  } catch (err) {
+    console.error('发表评论失败:', err);
     ElMessage.error('发表评论失败，请稍后再试');
   }
-  await saveProductInfo();
 };
 
-// 删除评论
-const handleDeleteComment = async (commentId: string) => {
+const handleDeleteComment = async (id: string) => {
   try {
-
-    await deleteComment(commentId);
-    ElMessage.success('评论删除成功');
+    await deleteComment(id);
+    ElMessage.success('评论已删除');
     await fetchProductComments();
-  } catch (error) {
-    console.error('删除评论失败:', error);
+  } catch (err) {
+    console.error('删除评论失败:', err);
     ElMessage.error('删除评论失败，请稍后再试');
   }
 };
-const recommend = async (productId: string) => {
-  try {
-    const userId = parseInt(localStorage.getItem('userId') || '0');
-    await useRecommendTicket(userId.toString(),productId);
-    await fetchProductDetails();
-  } catch (error) {
 
+const recommend = async (pid?: number | string) => {
+  try {
+    const userId = localStorage.getItem('userId') || '';
+    if (!userId) {
+      ElMessage.error('请先登录再操作');
+      return;
+    }
+    if (pid == null) return;
+    await useRecommendTicket(userId.toString(), String(pid));
+    ElMessage.success('已打赏推荐票');
+    await fetchProductDetails();
+  } catch (err) {
+    console.error('推荐失败:', err);
     ElMessage.error('推荐失败，请稍后再试');
   }
 };
-onMounted(async () => {
-  loading.value = true;
-  await fetchProductDetails();
-  await fetchProductStockpile();
-  await fetchProductComments();
-  loading.value = false;
-});
 
-const formatTag = (tag: string): string => {
-  const tagMap: Record<string, string> = {
-    NOVEL: '小说',
-    LITERATURE: '文学',
-    ART: '艺术',
-    HISTORY: '历史',
-    PHILOSOPHY: '哲学',
-    PSYCHOLOGY: '心理',
-    CULTURE: '文化',
-    TEXTBOOK: '教辅',
-    OTHER: '其他'
-  };
-  return tagMap[tag] || '未知';
+const formatTag = (tag: any): string => {
+  if (tag == null) return '未分类';
+  if (typeof tag === 'string') return tag;
+  if (Array.isArray(tag)) return tag.filter(Boolean).join('、');
+  if (typeof tag === 'number') return `分类${tag}`;
+  try { return String(tag); } catch { return '未分类'; }
 };
+
+onMounted(async () => {
+  try {
+    loading.value = true;
+    await Promise.all([
+      fetchProductDetails(),
+      fetchProductStockpile(),
+      fetchProductComments(),
+    ]);
+    if (product.value?.id && selectedQuantity.value[product.value.id] == null) {
+      selectedQuantity.value[product.value.id] = 1;
+    }
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
-<template>
-  <div class="background-layer"></div>
-  <div class="product-detail-container">
-    <!-- 头部区域 -->
-    <div class="product-header">
-      <div class="header-content">
-        <h1 v-if="!isEditing" class="product-title">{{ product?.title }}</h1>
-        <el-input
-            v-else
-            v-model="product.title"
-            placeholder="请输入商品标题"
-            class="title-input"
-            size="large"
-        />
+  <template>
+    <div class="product-detail-container">
+      <!-- 背景层 -->
+      <div class="background-layer"></div>
 
-        <el-button class="unified-button warning-button"
-                   @click="goBack"
-
-                   icon="el-icon-back"
-                   type="primary"
-                   plain
-        >
-          返回列表
-        </el-button>
-      </div>
-    </div>
-
-    <!-- 主体内容 -->
-    <div class="product-main">
-      <!-- 图片区域 -->
-      <div class="product-gallery">
-        <div class="main-image">
-          <img v-if="product" :src="product?.cover" alt="商品主图" class="product-cover" />
-        </div>
-        <div class="recommendation-section">
-          <div class="recommendation-info">
-            <div class="ticket-count">
-              <el-icon class="ticket-icon"><Star /></el-icon>
-              <span class="count-label">推荐票:</span>
-              <span class="count-value">{{ product?.recommendTicket || 0 }}</span>
-            </div>
-            <el-button
-                class="unified-button warning-button"
-                @click="recommend(product?.id)"
-                icon="el-icon-star-on"
-            >
-              打赏推荐票
-            </el-button>
+      <!-- 主要内容 -->
+      <div v-if="!loading && !error" class="elegant-product-detail">
+        <!-- 顶部：标题与返回 -->
+        <div class="pd-header">
+          <div class="pd-header-left">
+            <h1 v-if="!isEditing" class="pd-title">{{ product?.title }}</h1>
+            <el-input v-else v-model="product.title" placeholder="请输入商品标题" class="pd-title-input" />
           </div>
-          <div class="recommendation-hint">
-            <el-icon><InfoFilled /></el-icon>
-            <span>推荐票越多，商品曝光率越高</span>
+          <div class="pd-header-right">
+            <el-button class="btn ghost" @click="goBack" icon="el-icon-back">返回列表</el-button>
           </div>
         </div>
-      </div>
 
-      <!-- 商品信息区域 -->
-      <div class="product-info">
-        <!-- 基本信息卡片 -->
-        <el-card class="info-card">
-          <div class="info-section">
-            <div class="info-row">
-              <span class="info-label">价格：</span>
-              <span v-if="!isEditing" class="price-value">¥{{ product?.price.toFixed(2) }}</span>
-              <el-input-number
-                  v-else
-                  v-model="product.price"
-                  :min="0"
-                  :step="0.01"
-                  controls-position="right"
-                  size="medium"
-              />
-            </div>
-
-            <div class="info-row">
-              <span class="info-label">评分：</span>
-              <span v-if="!isEditing" class="rating-value">{{ product?.rate }}</span>
-              <el-input-number
-                  v-else
-                  v-model="product.rate"
-                  :min="0"
-                  :max="5"
-                  :step="0.1"
-                  controls-position="right"
-                  size="medium"
-              />
-            </div>
-
-            <div class="info-row">
-              <span class="info-label">标签：</span>
-              <span v-if="!isEditing" class="tag-value">{{ formatTag(product?.tag) }}</span>
-              <el-select v-else v-model="product.tag" placeholder="请选择标签" size="medium">
-                <el-option label="神话" value="MYTH" />
-                <el-option label="纪实" value="DOCUMENTARY" />
-                <el-option label="其他" value="OTHER" />
-              </el-select>
-            </div>
-
-            <div class="info-row">
-              <span class="info-label">描述：</span>
-              <span v-if="!isEditing" class="description-text">{{ product?.description }}</span>
-              <el-input
-                  v-else
-                  v-model="product.description"
-                  type="textarea"
-                  placeholder="请输入商品描述"
-                  :rows="3"
-                  class="description-input"
-              />
-            </div>
-          </div>
-        </el-card>
-
-        <!-- 规格信息卡片 -->
-        <el-card class="spec-card">
-          <div class="card-header">
-            <h3 class="section-title">规格信息</h3>
-            <el-button class="unified-button warning-button"
-                       v-if="!isEditing && role === 'MANAGER'"
-                       @click="toggleEditMode"
-                       type="primary"
-                       size="small"
-                       icon="el-icon-edit"
-            >
-              编辑商品信息
-            </el-button>
-          </div>
-
-          <div v-if="product?.specifications && product.specifications.length > 0" class="spec-grid">
-            <div v-for="(spec, index) in product.specifications" :key="index" class="spec-item">
-              <div class="spec-name">
-                <el-input
-                    v-if="isEditing"
-                    v-model="spec.item"
-                    placeholder="规格名称"
-                    size="small"
-                />
-                <span v-else>{{ spec.item }}</span>
-              </div>
-              <div class="spec-value">
-                <el-input
-                    v-if="isEditing"
-                    v-model="spec.value"
-                    placeholder="规格值"
-                    size="small"
-                />
-                <span v-else>{{ spec.value }}</span>
-              </div>
-              <div class="spec-actions" v-if="isEditing">
-                <el-button class="unified-button warning-button"
-                           @click="removeSpecification(index)"
-                           type="danger"
-                           icon="el-icon-delete"
-                           circle
-                           size="small"
-                >
-                  删除规格
-                </el-button>
-              </div>
-            </div>
-          </div>
-          <div v-else class="no-spec">
-            暂无规格信息
-          </div>
-
-          <div v-if="isEditing" class="add-specification">
-            <div class="spec-inputs">
-              <el-input
-                  v-model="newItem"
-                  placeholder="请输入规格名称"
-                  size="small"
-                  class="spec-input"
-              />
-              <el-input
-                  v-model="newValue"
-                  placeholder="请输入规格值"
-                  size="small"
-                  class="spec-input"
-              />
-            </div>
-            <el-button class="unified-button warning-button"
-                       @click="addNewSpecification"
-                       type="success"
-                       icon="el-icon-plus"
-                       size="small"
-            >
-              添加规格
-            </el-button>
-          </div>
-        </el-card>
-
-        <!-- 库存和操作区域 -->
-        <el-card class="action-card">
-          <div class="stock-info">
-            <div class="stock-item">
-              <span class="info-label">总库存：</span>
-              <span v-if="stockpile" class="stock-value">{{ stockpile.amount - 1 }}</span>
-            </div>
-            <div class="stock-item">
-              <span class="info-label">冻结库存：</span>
-              <span v-if="stockpile" class="stock-value">{{ stockpile.frozen }}</span>
-            </div>
-          </div>
-
-          <div class="action-buttons">
-            <el-button-group class="admin-buttons">
-              <el-button class="unified-button warning-button"
-                         v-if="role === 'MANAGER'"
-                         @click="toggleEditStockpile"
-                         type="warning"
-                         :icon="isEditingStockpile ? 'el-icon-close' : 'el-icon-edit'"
-              >
-                {{ isEditingStockpile ? "取消编辑" : "编辑库存" }}
-              </el-button>
-              <el-button class="unified-button warning-button"
-                         v-if="role === 'MANAGER'"
-                         @click="deletepro"
-                         type="danger"
-                         icon="el-icon-delete"
-              >
-                删除商品
-              </el-button>
-              <el-button class="unified-button warning-button"
-                         v-if="isEditing"
-                         @click="saveProductInfo"
-                         type="success"
-                         icon="el-icon-check"
-              >
-                保存商品信息
-              </el-button>
-              <el-button class="unified-button warning-button"
-                         v-if="isEditing"
-                         @click="toggleEditMode"
-                         type="info"
-                         icon="el-icon-close"
-              >
-                取消编辑
-              </el-button>
-            </el-button-group>
-          </div>
-
-          <div v-if="isEditingStockpile" class="stock-edit">
-            <el-input-number
-                v-model="newStockpileAmount"
-                placeholder="输入新的库存数量"
-                :min="0"
-                controls-position="right"
-                size="medium"
-                class="stock-input"
+        <!-- 主体：两列布局 -->
+        <div class="detail-layout">
+          <!-- 左侧：图片预览 -->
+          <div class="gallery">
+            <el-image
+              v-if="product"
+              class="main-photo"
+              :src="product?.cover"
+              fit="cover"
             />
-            <el-button class="unified-button warning-button"
-                       @click="saveStockpileAmount"
-                       type="primary"
-                       icon="el-icon-check"
-            >
-              保存库存
-            </el-button>
+
+            <div class="recommend">
+              <div class="recommend-row">
+                <el-icon><Star /></el-icon>
+                <span>推荐票</span>
+                <strong>{{ product?.recommendTicket || 0 }}</strong>
+                <el-button class="btn primary small" @click="recommend(product?.id)" icon="el-icon-star-on">打赏</el-button>
+              </div>
+              <div class="recommend-hint">
+                <el-icon><InfoFilled /></el-icon>
+                <span>推荐票越多，商品曝光率越高</span>
+              </div>
+            </div>
           </div>
 
-          <div class="cart-section">
-            <div class="cart-controls">
-              <span class="info-label">购买数量：</span>
-              <el-input-number
+          <!-- 右侧：商品信息与购买 -->
+          <div class="info-panel">
+            <div class="price-block">
+              <div class="price">¥{{ product?.price?.toFixed(2) }}</div>
+              <div class="stock">库存：{{ availableStock }} 件</div>
+            </div>
+
+            <div class="meta-block">
+              <div class="rating">
+                <el-rate :model-value="product?.rate || 0" disabled :max="5" />
+                <span class="rating-text">{{ formattedRate }}</span>
+              </div>
+              <div class="tag">分类：{{ formatTag(product?.tag) }}</div>
+            </div>
+
+            <!-- 商品介绍：移到右侧 -->
+            <div class="desc">
+              <template v-if="product?.description && product.description.trim()">
+                {{ product.description }}
+              </template>
+              <template v-else>
+                暂无商品介绍
+              </template>
+            </div>
+
+            <div class="buy-block">
+              <div class="qty">
+                <span>数量</span>
+                <el-input-number
                   v-model="selectedQuantity[product?.id]"
                   :min="1"
-                  :max="((stockpile?.amount || 1) - (stockpile?.frozen || 0) - 1) || 1"
-                  size="medium"
+                  :max="availableStock || 1"
+                  size="large"
                   controls-position="right"
-              />
-              <el-button class="unified-button warning-button"
-                         type="primary"
-                         @click="addToCart(product?.id, selectedQuantity[product?.id] || 1)"
-                         icon="el-icon-shopping-cart-full"
-                         c
-              >
-                加入购物车
-              </el-button>
-            </div>
-          </div>
-        </el-card>
-      </div>
-    </div>
-
-    <!-- 评论区域 -->
-    <div class="comments-section">
-      <el-card class="comments-card">
-        <div class="section-header">
-          <h2 class="section-title">商品评论</h2>
-          <div v-if="comments.length === 0" class="no-comments">
-            还没有评论，快来发表第一个评论吧！
-          </div>
-        </div>
-
-        <div v-for="comment in comments" :key="comment.id" class="comment-item">
-          <div class="comment-header">
-            <div class="user-info">
-              <el-avatar :size="50" icon="el-icon-user-solid" class="user-avatar"></el-avatar>
-              <div class="user-details">
-                <strong class="username">用户{{ comment.userId }}</strong>
-
+                />
+              </div>
+              <div class="actions">
+                <el-button class="btn primary" @click="addToCart(product?.id, selectedQuantity[product?.id] || 1)" icon="el-icon-shopping-cart-full">加入购物车</el-button>
+                <el-button class="btn" v-if="role === 'MANAGER'" @click="toggleEditMode" icon="el-icon-edit">编辑商品信息</el-button>
               </div>
             </div>
-            <el-button class="unified-button warning-button"
-                       v-if="role === 'MANAGER'"
-                       @click="handleDeleteComment(comment.id.toString())"
-                       type="danger"
-                       icon="el-icon-delete"
-                       circle
-                       size="small"
 
-            >
-              删除评论
-            </el-button>
-          </div>
-          <div class="comment-rating">
-            <el-rate
-                v-model="comment.rate"
-                show-score
-                disabled
-                :max="5"
-                text-color="#ff9900"/>
-          </div>
-          <div class="comment-content">
-            <p>{{ comment.content }}</p>
+            <div class="admin-block" v-if="role === 'MANAGER'">
+              <div class="admin-row">
+                <el-button class="btn warn" @click="toggleEditStockpile" :icon="isEditingStockpile ? 'el-icon-close' : 'el-icon-edit'">{{ isEditingStockpile ? '取消编辑库存' : '编辑库存' }}</el-button>
+                <el-button class="btn danger" @click="deletepro" icon="el-icon-delete">删除商品</el-button>
+                <el-button class="btn success" v-if="isEditing" @click="saveProductInfo" icon="el-icon-check">保存商品信息</el-button>
+                <el-button class="btn" v-if="isEditing" @click="toggleEditMode" icon="el-icon-close">取消编辑</el-button>
+              </div>
+              <div class="stock-edit" v-if="isEditingStockpile">
+                <el-input-number v-model="newStockpileAmount" :min="0" controls-position="right" />
+                <el-button class="btn primary" @click="saveStockpileAmount" icon="el-icon-check">保存库存</el-button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="post-comment">
-          <h3 class="section-subtitle">发表评论</h3>
-          <el-rate v-model="commentRate" :max="5" show-score text-color="#ff9900" class="comment-rate"></el-rate>
-          <el-input
-              type="textarea"
-              v-model="commentContent"
-              placeholder="请分享您的使用体验..."
-              :rows="4"
-              class="comment-textarea"
-          ></el-input>
-          <el-button class="unified-button warning-button"
-                     @click="postComment"
-                     type="primary"
-                     icon="el-icon-chat-line-round"
+        <!-- 下方：详情/规格/评价 -->
+        <el-card class="tabs-card">
+          <el-tabs type="border-card">
+            
+            <el-tab-pane label="规格参数">
+              <!-- 规格编辑区域 -->
+              <div v-if="isEditing" class="spec-edit">
+                <div class="spec-grid">
+                  <div v-for="(spec, index) in product.specifications" :key="index" class="spec-item">
+                    <el-input v-model="spec.item" placeholder="规格名称" size="small" />
+                    <el-input v-model="spec.value" placeholder="规格值" size="small" />
+                    <el-button class="btn danger small" @click="removeSpecification(index)" icon="el-icon-delete">删除</el-button>
+                  </div>
+                </div>
+                <div class="add-spec">
+                  <el-input v-model="newItem" placeholder="规格名称" size="small" />
+                  <el-input v-model="newValue" placeholder="规格值" size="small" />
+                  <el-button class="btn primary" @click="addNewSpecification" icon="el-icon-plus">添加规格</el-button>
+                </div>
+              </div>
+              <!-- 规格显示区域 -->
+              <div v-else>
+                <div v-if="product?.specifications && product.specifications.length" class="spec-grid">
+                  <div v-for="(spec, index) in product.specifications" :key="index" class="spec-item">
+                    <div class="spec-name">{{ spec.item }}</div>
+                    <div class="spec-value">{{ spec.value }}</div>
+                  </div>
+                </div>
+                <div v-else class="no-spec">暂无规格信息</div>
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="用户评价">
+              <div v-if="comments.length === 0" class="no-comments">还没有评论，快来发表第一个评论吧！</div>
 
-          >
-            提交评论
-          </el-button>
-        </div>
-      </el-card>
+              <div v-for="comment in comments" :key="comment.id" class="comment-item">
+                <div class="comment-header">
+                  <div class="user-info">
+                    <el-avatar :size="40" :src="comment.avatar || defaultAvatar"></el-avatar>
+                    <strong class="username">{{ comment.username || comment.name || '用户'}}</strong>
+                  </div>
+                  <el-button class="btn danger small" v-if="role === 'MANAGER'" @click="handleDeleteComment(comment.id.toString())" icon="el-icon-delete">删除</el-button>
+                </div>
+                <div class="comment-rating">
+                  <el-rate v-model="comment.rate" disabled :max="5" />
+                  <span class="rating-text">{{ Number(comment.rate ?? 0).toFixed(2) }}</span>
+                </div>
+                <div class="comment-content"><p>{{ comment.content }}</p></div>
+              </div>
+
+              <div class="post-comment">
+                <h3 class="section-subtitle">发表评论</h3>
+                <el-rate v-model="commentRate" :max="5" class="comment-rate"></el-rate>
+                <el-input type="textarea" v-model="commentContent" placeholder="请分享您的使用体验..." :rows="4" class="comment-textarea"></el-input>
+                <el-button class="btn primary" @click="postComment" icon="el-icon-chat-line-round">提交评论</el-button>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </el-card>
+      </div>
+
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading-overlay">
+        <el-icon class="is-loading" :size="50" color="#409EFF"><Loading /></el-icon>
+        <div class="loading-text">加载中，请稍候...</div>
+      </div>
+
+      <div v-else-if="error" class="error-message">
+        <el-icon :size="30" color="#F56C6C"><Warning /></el-icon>
+        <div class="error-text">{{ error }}</div>
+        <el-button @click="fetchProductDetails" type="primary" size="default">重新加载</el-button>
+      </div>
     </div>
-
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-overlay">
-      <el-icon class="is-loading" :size="50" color="#409EFF"><Loading /></el-icon>
-      <div class="loading-text">加载中，请稍候...</div>
-    </div>
-
-    <div v-else-if="error" class="error-message">
-      <el-icon :size="30" color="#F56C6C"><Warning /></el-icon>
-      <div class="error-text">{{ error }}</div>
-      <el-button @click="fetchProductDetails" type="primary" size="medium">重新加载</el-button>
-    </div>
-  </div>
-</template>
-
+  </template>
 <style scoped>
 * {
   margin: 0;
@@ -677,15 +508,14 @@ const formatTag = (tag: string): string => {
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
-body {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.product-detail-container {
   min-height: 100vh;
   padding: 20px;
+  position: relative;
   color: #333;
-  overflow-x: hidden;
 }
 
-/* 背景层样式 */
+/* 背景层 */
 .background-layer {
   position: fixed;
   top: 0;
@@ -699,485 +529,463 @@ body {
   z-index: -1;
 }
 
-
-
-/* 头部样式 */
-.product-header {
-  margin-bottom: 30px;
-  padding: 20px 30px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  display: flex;
-  justify-content: center; /* 修改为居中 */
-  align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  position: relative; /* 为按钮定位做准备 */
-}
-
-.header-content {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  position: relative; /* 确保按钮可以绝对定位 */
-}
-
-.product-title {
-  font-size: 50px;
-  font-weight: 700;
-  color: #2c3e50;
-  margin: 0;
-  letter-spacing: 0.5px;
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-
-  text-align: center; /* 标题文本居中 */
-  flex-grow: 1; /* 允许标题占据可用空间 */
-}
-
-
-
-
-/* 主体内容 */
-.product-main {
-  display: flex;
-  gap: 30px;
-  margin-bottom: 40px;
-}
-
-.product-gallery {
-  flex: 0 0 45%;
+.elegant-product-detail {
   position: relative;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  height: 550px;
-}
-.product-gallery, .recommendation-section {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  padding: 25px;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-.main-image {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  z-index: 1;
 }
 
-.product-cover {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* 关键属性 - 确保图片覆盖整个区域 */
-  transition: transform 0.5s ease;
-}
-
-/* 添加悬停放大效果 */
-.main-image:hover .product-cover {
-  transform: scale(1.05);
-}
-
-/* 添加图片遮罩层增强效果 */
-.main-image::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-      to bottom,
-      rgba(0,0,0,0.1) 0%,
-      rgba(0,0,0,0.3) 100%
-  );
-  pointer-events: none;
-}
-
-.image-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.05));
-}
-
-.product-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-}
-
-/* 卡片样式 */
-.info-card, .spec-card, .action-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  padding: 25px;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.info-card:hover, .spec-card:hover, .action-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
-}
-
-/* 信息行样式 */
-.info-row {
-  display: flex;
-  margin-bottom: 20px;
-  padding: 15px 0;
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
-}
-
-.info-label {
-  width: 125px;
-  font-weight: 600;
-  color: #5e6d82;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 25px;
-}
-
-.info-label i {
-  font-size: 20px;
-  color: #6a11cb;
-}
-
-.info-value {
-  flex: 1;
-  font-size: 17px;
-}
-
-.price-value {
-  font-size: 40px;
-  font-weight: bold;
-  background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.rating-value {
-  font-size: 35px;
-  color: #f39c12;
-  font-weight: 700;
-}
-
-.tag-value {
-  background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
-  color: white;
-  padding: 8px 18px;
-  border-radius: 20px;
-  font-size: 15px;
-  display: inline-block;
-  font-weight: 500;
-}
-
-.description-text {
-  color: #5e6d82;
-  line-height: 1.8;
-  font-size: 35px;
-}
-
-/* 规格区域 */
-.card-header {
+/* 顶部区域 */
+.pd-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   margin-bottom: 20px;
 }
 
-.section-title {
-  font-size: 22px;
+.pd-title {
+  font-size: 28px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #1f2937;
   margin: 0;
+}
+
+.pd-title-input {
+  max-width: 520px;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+/* 按钮样式 */
+.btn {
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn.primary {
+  background: linear-gradient(120deg, #2563eb, #1d4ed8);
+  color: #fff;
+}
+
+.btn.ghost {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.btn.warn {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #fff;
+}
+
+.btn.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+}
+
+.btn.danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+}
+
+.btn.small {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/* 主体布局 */
+.detail-layout {
+  display: grid;
+  grid-template-columns: 520px 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* 图片展示区 */
+.gallery {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  padding: 16px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.main-photo {
+  width: 100%;
+  height: 480px;
+  border-radius: 10px;
+  overflow: hidden;
+  object-fit: cover;
+}
+
+.thumbs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 
+.thumb {
+  width: 100%;
+  height: 90px;
+  border-radius: 8px;
+  cursor: pointer;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.thumb:hover {
+  transform: scale(1.05);
+}
+
+.recommend {
+  margin-top: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.recommend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.recommend-row strong {
+  color: #ef4444;
+  font-size: 18px;
+}
+
+.recommend-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* 信息面板 */
+.info-panel {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.price-block {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 12px;
+}
+
+.price {
+  font-size: 32px;
+  font-weight: 800;
+  color: #ef4444;
+  background: linear-gradient(135deg, #ef4444, #f59e0b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stock {
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.meta-block {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-text {
+  color: #f59e0b;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.tag {
+  color: #374151;
+  background: #f3f4f6;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.buy-block {
+  padding-top: 12px;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.qty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 管理功能 */
+.admin-block {
+  margin-top: 16px;
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 16px;
+}
+
+.admin-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.stock-edit {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+/* 标签页 */
+.tabs-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  padding: 0;
+  overflow: hidden;
+}
+
+.tabs-card :deep(.el-tabs__header) {
+  margin: 0;
+}
+
+.tabs-card :deep(.el-tabs__content) {
+  padding: 20px;
+}
+
+.desc {
+  color: #4b5563;
+  line-height: 1.8;
+  font-size: 16px;
+  padding: 10px 0;
+}
+
+/* 规格相关 */
+.spec-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.spec-edit .spec-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.spec-edit .spec-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.spec-edit .spec-item .el-input {
+  flex: 1;
+}
+
+.add-spec {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px dashed #d1d5db;
+}
+
+.add-spec .el-input {
+  flex: 1;
+}
+
+/* 规格显示 */
 .spec-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 15px;
-  margin-bottom: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 16px 0;
 }
 
 .spec-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 18px;
-  background: rgba(245, 247, 250, 0.7);
-  border-radius: 15px;
+  gap: 8px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
   transition: all 0.3s ease;
-  border: 1px solid rgba(224, 230, 237, 0.5);
 }
 
 .spec-item:hover {
-  background: rgba(236, 245, 255, 0.7);
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(106, 17, 203, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.spec-name, .spec-value {
+.spec-name,
+.spec-value {
   flex: 1;
-  font-size: 15px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.spec-name {
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .no-spec {
   text-align: center;
   color: #909399;
-  padding: 30px 0;
+  padding: 40px 0;
   font-style: italic;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
   font-size: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin: 10px 0;
 }
-
-.no-spec i {
-  font-size: 28px;
-  color: #c0c4cc;
-}
-
-.add-specification {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px dashed rgba(0, 0, 0, 0.08);
-}
-
-.spec-inputs {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.spec-input {
-  flex: 1;
-  border-radius: 12px;
-}
-
-.add-spec-btn {
-  width: 100%;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: white;
-  border: none;
-  font-weight: 500;
-}
-
-/* 库存和操作区域 */
-.stock-info {
-  display: flex;
-  gap: 30px;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
-}
-
-.stock-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 16px;
-}
-
-.stock-value {
-  font-weight: 700;
-  font-size: 40px;
-  background: linear-gradient(135deg, #5ee7df 0%, #b490ca 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.action-buttons {
-  margin-bottom: 20px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.action-buttons .el-button {
-  border-radius: 12px;
-  font-weight: 500;
-  padding: 12px 20px;
-}
-
-.stock-edit {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 18px;
-  background: rgba(245, 247, 250, 0.7);
-  border-radius: 15px;
-}
-
-.stock-input {
-  flex: 1;
-  border-radius: 12px;
-}
-
-.cart-section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px dashed rgba(0, 0, 0, 0.08);
-}
-
-.cart-controls {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
 
 /* 评论区域 */
-.comments-section {
-  margin-top: 40px;
-  padding: 30px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.section-header {
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.comments-container {
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 10px;
+.no-comments {
+  text-align: center;
+  color: #909399;
+  padding: 40px 0;
+  font-style: italic;
+  font-size: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin: 10px 0;
 }
 
 .comment-item {
-  padding: 25px;
-  margin-bottom: 25px;
-  border-radius: 16px;
-  background: rgba(250, 250, 252, 0.8);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.03);
+  padding: 20px;
+  margin-bottom: 20px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
   transition: all 0.3s ease;
-  border: 1px solid rgba(224, 230, 237, 0.5);
 }
 
 .comment-item:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .comment-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 15px;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 15px;
-}
-
-.user-avatar {
-  background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 24px;
-  width: 60px;
-  height: 60px;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
+  gap: 12px;
 }
 
 .username {
-  font-weight: 600;
-  font-size: 18px;
-  color: #2c3e50;
-}
-
-.comment-date {
-  font-size: 15px;
-  color: #909399;
+  color: #1f2937;
+  font-size: 16px;
 }
 
 .comment-rating {
-  margin: 15px 0;
   display: flex;
   align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-.el-rate {
-  --el-rate-icon-size: 22px;
-  --el-rate-icon-margin: 4px;
-}
-.comment-content {
-  color: #606266;
-  line-height: 1.8;
-  font-size: 16px;
+
+.comment-content p {
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
 }
 
 .post-comment {
-  margin-top: 40px;
-  padding-top: 30px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 30px;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
 }
 
 .section-subtitle {
-  font-size: 22px;
-  font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 16px;
 }
 
 .comment-rate {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .comment-textarea {
-  border-radius: 15px;
-  padding: 18px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
+}
+
+.comment-textarea :deep(.el-textarea__inner) {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
   transition: all 0.3s ease;
-  margin-bottom: 20px;
-  font-size: 16px;
 }
 
-.comment-textarea:focus {
-  border-color: #6a11cb;
-  box-shadow: 0 0 0 2px rgba(106, 17, 203, 0.2);
+.comment-textarea :deep(.el-textarea__inner:focus) {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
-
-
 
 /* 加载状态 */
 .loading-overlay {
@@ -1192,189 +1000,138 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
-
+.loading-overlay .is-loading {
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-text {
-  margin-top: 25px;
-  font-size: 20px;
-  color: #606266;
+  font-size: 18px;
+  color: #374151;
   font-weight: 500;
+}
+
+/* 错误状态 */
+.error-message {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  gap: 20px;
+  text-align: center;
+  padding: 20px;
+}
+
+.error-text {
+  font-size: 18px;
+  color: #dc2626;
+  font-weight: 500;
+  max-width: 500px;
+  line-height: 1.6;
 }
 
 /* 响应式设计 */
 @media (max-width: 1200px) {
-  .product-main {
-    flex-direction: column;
+  .detail-layout {
+    grid-template-columns: 1fr;
   }
-
-  .product-gallery {
-    flex: none;
-    height: 500px;
+  
+  .gallery {
+    max-width: 600px;
+    margin: 0 auto;
   }
 }
 
 @media (max-width: 768px) {
-  .elegant-product-detail {
-    padding: 20px 15px;
+  .product-detail-container {
+    padding: 10px;
   }
-
-  .product-header {
+  
+  .pd-header {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
-    padding: 20px;
+    gap: 16px;
+    align-items: stretch;
   }
-
-  .main-image {
-    height: 400px;
+  
+  .pd-header-left,
+  .pd-header-right {
+    width: 100%;
   }
-
+  
+  .pd-title {
+    font-size: 24px;
+  }
+  
+  .detail-layout {
+    gap: 16px;
+  }
+  
+  .main-photo {
+    height: 350px;
+  }
+  
+  .buy-block {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-row,
+  .actions {
+    flex-direction: column;
+  }
+  
+  .admin-row .btn,
+  .actions .btn {
+    width: 100%;
+  }
+  
   .spec-grid {
     grid-template-columns: 1fr;
   }
-
-  .cart-controls {
+  
+  .add-spec {
+    flex-direction: column;
+  }
+  
+  .add-spec .el-input {
+    width: 100%;
+  }
+  
+  .thumb {
+    height: 60px;
+  }
+  
+  .comment-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 20px;
+    gap: 12px;
   }
-
-  .stock-info {
+  
+  .stock-edit {
     flex-direction: column;
-    gap: 15px;
+    align-items: stretch;
   }
-
-  .action-buttons {
-    flex-direction: column;
-  }
-}
-.unified-button {
-  display: inline-flex;
-  align-items: center;   /* 垂直居中 */
-  justify-content: center; /* 水平居中 */
-  border-radius: 24px;
-  padding: 12px 24px;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  text-align: center;    /* 后备居中 */
-  font-size: 14px;
-  min-width: 120px;
-}
-
-.unified-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-}
-
-.unified-button i {
-  margin-right: 8px;
-}
-.unified-button .el-icon {
-  position: static !important; /* 移除Element UI定位 */
-  transform: none !important; /* 清除图标偏移 */
-  margin-top: 0 !important;
-}
-
-/* 确保文字元素正确显示 */
-.unified-button span {
-  display: inline-block;
-  width: 100%;
-}
-.primary-button {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-  color: white;
-}
-
-.warning-button {
-  background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
-  color: white;
-}
-.product-gallery {
-  display: flex;
-  flex-direction: column;
-  border-radius: 20px;
-  overflow: hidden;
-}
-
-.recommendation-section {
-  background: rgba(255, 255, 255, 0.9);
-  padding: 15px 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  margin-top: 30px;
-}
-
-.recommendation-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.ticket-count {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-}
-
-.ticket-icon {
-  color: #ffc107;
-  font-size: 20px;
-}
-
-.count-label {
-  color: #5e6d82;
-}
-
-.count-value {
-  font-weight: bold;
-  color: #e91e63;
-  font-size: 18px;
-}
-
-.recommendation-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #909399;
-  background: rgba(245, 247, 250, 0.7);
-  padding: 8px 12px;
-  border-radius: 12px;
-}
-
-.recommendation-hint .el-icon {
-  color: #409eff;
-}
-
-@media (max-width: 480px) {
-
-
-  .product-title {
-    font-size: 26px;
-  }
-
-  .main-image {
-    height: 350px;
-  }
-
-  .info-card, .spec-card, .action-card {
-    padding: 20px 15px;
-  }
-
-  .info-row {
-    flex-direction: column;
-    gap: 10px;
+  
+  .stock-edit .el-input-number {
+    width: 100%;
   }
 }
 </style>
