@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { updateInfo, getAllProducts, getOneProductAmount, searchName,searchByTag,TagEnum } from '../../api/product.ts';
 import { addProductToCart, changeCartItemQuantity, getAllCartItems, getCart } from '../../api/cart.ts';
 import { ElMessage } from 'element-plus'; // 确保导入 ElMessage
 import { getAllAdvertisements } from "../../api/advertisement"; // 新增广告API导入
+import { Search } from "@element-plus/icons-vue";
 
 // 在类型定义部分添加
 interface AdvertisementInfo {
@@ -38,6 +39,28 @@ const tagEnumMapping: { [key in TagEnum]: string } = {
 const tags = Object.values(TagEnum);
 const selectedQuantity = ref<{ [key: number]: number }>({});
 const selectedTag = ref<TagEnum | null>(null); // 新增这一行
+const isCollapsedSearch = ref(false);
+const isSearchFocus = ref(false);
+const isPastNav = ref(false);
+
+const SCROLL_THRESHOLD = 140;
+
+const handleScroll = () => {
+  const scrolled = window.scrollY > SCROLL_THRESHOLD;
+  isPastNav.value = scrolled;
+  if (isSearchFocus.value && !scrolled) return;
+  isCollapsedSearch.value = scrolled;
+};
+
+const expandSearch = () => {
+  isCollapsedSearch.value = false;
+  isSearchFocus.value = true;
+};
+
+const handleSearchBlur = () => {
+  isSearchFocus.value = false;
+  handleScroll();
+};
 
 const fetchProducts = async () => {
   try {
@@ -103,6 +126,13 @@ const handleTagSelect = async (tag: TagEnum) => {
   }
 };
 
+// 选择“全部”标签：重置筛选并加载所有商品
+const handleAllSelect = async () => {
+  selectedTag.value = null;
+  loading.value = true;
+  await fetchProducts();
+};
+
 const performSearch = async () => {
   try {
     const response = await searchName(searchQuery.value);
@@ -122,6 +152,8 @@ const performSearch = async () => {
     error.value = "请求失败，请稍后再试";
   } finally {
     loading.value = false;
+    isSearchFocus.value = false;
+    handleScroll();
   }
 };
 
@@ -180,160 +212,223 @@ const checkQuantity = (productId: number, quantity: number): boolean => {
 
 fetchProducts();
 fetchAdvertisements();
+
+onMounted(() => {
+  window.addEventListener("scroll", handleScroll, { passive: true });
+});
+
+onUnmounted(() => {
+  window.removeEventListener("scroll", handleScroll);
+});
 </script>
 
 
 <template>
   <div class="product-page-container">
-    <div v-if="advertisements.length > 0" class="advertisement-carousel">
-      <el-carousel :interval="5000" arrow="always" height="300px">
-        <el-carousel-item
-            v-for="(adv, index) in advertisements"
-            :key="index"
-            @click="viewProduct(adv.productId)"          style="cursor: pointer"
-        >
-          <img
-              :src="adv.advUrl"
-              alt="广告图片"
-              class="carousel-image"
-          />
-        </el-carousel-item>
-      </el-carousel>
-    </div>
-    <!-- 顶部搜索和筛选区域 -->
-    <div class="search-filter-section">
-      <div class="search-container">
-        <el-input
-            v-model="searchQuery"
-            placeholder="搜索商品名称..."
-            class="search-input"
-            clearable
-        >
-          <template #prefix>
-            <el-icon><search /></el-icon>
-          </template>
-        </el-input>
-        <el-button
-            type="primary"
-            icon="el-icon-search"
-            @click="performSearch"
-            class="search-button"
-        >
-          搜索
-        </el-button>
-      </div>
-
-      <!-- 标签分类 -->
-      <div class="category-tags">
-        <el-button
-            v-for="tag in tags"
-            :key="tag"
-            :type="selectedTag === tag ? 'primary' : ''"
-            @click="handleTagSelect(tag as TagEnum)"
-            class="category-tag"
-        >
-          {{ tag }}
-        </el-button>
-      </div>
-    </div>
-
-    <!-- 商品列表区域 -->
-    <div class="product-list-container">
-      <h1 class="section-title">商品列表</h1>
-
-      <div v-if="loading" class="loading-state">
-        <el-icon class="is-loading"><loading /></el-icon>
-        <span>加载中...</span>
-      </div>
-
-      <div v-else-if="error" class="error-state">
-        <el-icon><warning /></el-icon>
-        <span>{{ error }}</span>
-      </div>
-
-      <div v-else>
-        <!-- 商品网格布局 -->
-        <div class="product-grid">
+    <div class="content-layout">
+      <!-- 左侧边栏：分类标签 -->
+      <aside class="sidebar">
+        <div class="sidebar-card" :class="{ 'sidebar-top-flush': isPastNav }">
           <div
-              v-for="product in products"
-              :key="product.id"
-              class="product-card"
-              @click="viewProduct(product.id)"
+              class="category-grid"
           >
-            <!-- 商品图片 -->
-            <div class="product-image-container">
-              <el-image
-                  :src="product.cover"
-                  fit="cover"
-                  class="product-image"
-              >
-                <template #error>
-                  <div class="image-error-placeholder">
-                    <el-icon><picture /></el-icon>
-                  </div>
-                </template>
-              </el-image>
-              <div v-if="product.stockpile" class="stock-badge">
-                库存: {{ product.stockpile.amount - (product.stockpile.frozen || 0) - 1 }}
-              </div>
+            <!-- 全部 标签 -->
+            <div
+                class="category-cell"
+                :class="{ active: selectedTag === null }"
+                @click="handleAllSelect"
+            >
+              <span class="cell-text">全部</span>
             </div>
 
-            <!-- 商品信息 -->
-            <div class="product-info">
-              <h3 class="product-title">{{ product.title }}</h3>
-
-              <div class="product-meta">
-                <div class="product-price">
-                  <span class="price-label">价格:</span>
-                  <span class="price-value">¥{{ product.price.toFixed(2) }}</span>
-                </div>
-
-                <div class="product-rating">
-                  <el-rate
-                      v-model="product.rate"
-                      disabled
-                      :max="5"
-                      show-score
-                      text-color="#ff9900"
-                      score-template="{value}"
-                  />
-                </div>
-              </div>
-
-              <p class="product-description">{{ product.description }}</p>
+            <!-- 其他标签 -->
+            <div
+                v-for="tag in tags"
+                :key="tag"
+                class="category-cell"
+                :class="{ active: selectedTag === tag }"
+                @click="handleTagSelect(tag as TagEnum)"
+            >
+              <span class="cell-text">{{ tag }}</span>
             </div>
+          </div>
+        </div>
+      </aside>
 
-            <!-- 购物车操作 -->
-            <div class="cart-actions" @click.stop>
-              <el-input-number
-                  v-model="selectedQuantity[product.id]"
-                  :min="0"
-                  :max="(product.stockpile?.amount || 0) - (product.stockpile?.frozen || 0) - 1"
-                  size="small"
-                  controls-position="right"
-                  class="quantity-input"
+      <!-- 右侧主内容 -->
+      <section class="main-content">
+        <div v-if="advertisements.length > 0" class="advertisement-carousel">
+          <el-carousel :interval="5000" arrow="always" height="300px">
+            <el-carousel-item
+                v-for="(adv, index) in advertisements"
+                :key="index"
+                @click="viewProduct(adv.productId)"          style="cursor: pointer"
+            >
+              <img
+                  :src="adv.advUrl"
+                  alt="广告图片"
+                  class="carousel-image"
               />
+            </el-carousel-item>
+          </el-carousel>
+        </div>
+
+        <!-- 顶部仅保留搜索区域 -->
+        <div class="search-filter-section" :class="{ collapsed: isCollapsedSearch && !isSearchFocus }">
+          <transition name="fade-scale">
+            <div
+                v-if="!isCollapsedSearch || isSearchFocus"
+                class="search-container"
+            >
+              <el-input
+                  v-model="searchQuery"
+                  placeholder="搜索商品名称..."
+                  class="search-input"
+                  clearable
+                  @focus="isSearchFocus = true"
+                  @blur="handleSearchBlur"
+              >
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
               <el-button
                   type="primary"
-                  size="small"
-                  icon="el-icon-shopping-cart-full"
-                  @click.stop="addToCart(product.id, selectedQuantity[product.id] || 1)"
-                  :disabled="!selectedQuantity[product.id] || selectedQuantity[product.id] === 0"
-                  class="add-cart-btn"
+                  class="search-button icon-only"
+                  @click="performSearch"
               >
-                加入购物车
+                <el-icon><Search /></el-icon>
+              </el-button>
+            </div>
+          </transition>
+
+          <transition name="fade-scale">
+            <button
+                v-if="isCollapsedSearch && !isSearchFocus"
+                class="search-fab"
+                @click="expandSearch"
+                aria-label="展开搜索"
+                title="展开搜索"
+            >
+              <el-icon><Search /></el-icon>
+            </button>
+          </transition>
+
+          <!-- 移动端备用：横向标签条 -->
+          <div class="mobile-categories">
+            <div class="mobile-tags">
+              <el-button
+                  v-for="tag in tags"
+                  :key="tag"
+                  :type="selectedTag === tag ? 'primary' : ''"
+                  @click="handleTagSelect(tag as TagEnum)"
+                  class="category-tag"
+              >
+                {{ tag }}
               </el-button>
             </div>
           </div>
         </div>
 
-        <!-- 无商品提示 -->
-        <div v-if="products.length === 0" class="empty-state">
-          <el-empty description="没有找到相关商品">
-            <el-button type="primary" @click="fetchProducts">重新加载</el-button>
-          </el-empty>
+        <!-- 商品列表区域 -->
+        <div class="product-list-container">
+          <h1 class="section-title">商品列表</h1>
+
+          <div v-if="loading" class="loading-state">
+            <el-icon class="is-loading"><loading /></el-icon>
+            <span>加载中...</span>
+          </div>
+
+          <div v-else-if="error" class="error-state">
+            <el-icon><warning /></el-icon>
+            <span>{{ error }}</span>
+          </div>
+
+          <div v-else>
+            <!-- 商品网格布局 -->
+            <div class="product-grid">
+              <div
+                  v-for="product in products"
+                  :key="product.id"
+                  class="product-card"
+                  @click="viewProduct(product.id)"
+              >
+                <!-- 商品图片 -->
+                <div class="product-image-container">
+                  <el-image
+                      :src="product.cover"
+                      fit="cover"
+                      class="product-image"
+                  >
+                    <template #error>
+                      <div class="image-error-placeholder">
+                        <el-icon><picture /></el-icon>
+                      </div>
+                    </template>
+                  </el-image>
+                  <div v-if="product.stockpile" class="stock-badge">
+                    库存: {{ product.stockpile.amount - (product.stockpile.frozen || 0) - 1 }}
+                  </div>
+                </div>
+
+                <!-- 商品信息 -->
+                <div class="product-info">
+                  <h3 class="product-title">{{ product.title }}</h3>
+
+                  <div class="product-meta">
+                    <div class="product-price">
+                      <span class="price-label">价格:</span>
+                      <span class="price-value">¥{{ product.price.toFixed(2) }}</span>
+                    </div>
+
+                    <div class="product-rating">
+                      <el-rate
+                          v-model="product.rate"
+                          disabled
+                          :max="5"
+                          show-score
+                          text-color="#ff9900"
+                          score-template="{value}"
+                      />
+                    </div>
+                  </div>
+
+                  <p class="product-description">{{ product.description }}</p>
+                </div>
+
+                <!-- 购物车操作 -->
+                <div class="cart-actions" @click.stop>
+                  <el-input-number
+                      v-model="selectedQuantity[product.id]"
+                      :min="0"
+                      :max="(product.stockpile?.amount || 0) - (product.stockpile?.frozen || 0) - 1"
+                      size="small"
+                      controls-position="right"
+                      class="quantity-input"
+                  />
+                  <el-button
+                      type="primary"
+                      size="small"
+                      icon="el-icon-shopping-cart-full"
+                      @click.stop="addToCart(product.id, selectedQuantity[product.id] || 1)"
+                      :disabled="!selectedQuantity[product.id] || selectedQuantity[product.id] === 0"
+                      class="add-cart-btn"
+                  >
+                    加入购物车
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 无商品提示 -->
+            <div v-if="products.length === 0" class="empty-state">
+              <el-empty description="没有找到相关商品">
+                <el-button type="primary" @click="fetchProducts">重新加载</el-button>
+              </el-empty>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
@@ -422,48 +517,192 @@ fetchAdvertisements();
   width: 100%;
   padding: 20px;
   box-sizing: border-box;
+  --nav-offset: 72px; /* 与导航栏间距保持一致，方便统一调节 */
 }
+
+/* 布局：左侧边栏 + 右侧内容 */
+.content-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.sidebar { position: relative; }
+.sidebar-card {
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  position: fixed; /* 固定在视口左侧，随滚动保持位置 */
+  left: 20px;
+  top: var(--nav-offset);
+  width: 260px; /* 与左侧列宽一致 */
+  height: calc(100vh - var(--nav-offset) - 20px); /* 根据导航间距调整可视高度 */
+  display: flex;
+  flex-direction: column;
+  z-index: 9;
+}
+.sidebar-card.sidebar-top-flush {
+  top: 0;
+  height: calc(100vh - 20px);
+}
+.sidebar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+.category-grid {
+  margin-top: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr; /* 单列 */
+  grid-auto-rows: 76px; /* 缩小矩形高度为 82px，保持一致 */
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.category-cell {
+  border: 1px solid #eef2f7;
+  background: #f8fafc;
+  border-radius: 10px;
+  box-shadow: 0 6px 12px rgba(15,23,42,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.category-cell:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(15,23,42,0.1);
+  background: #ffffff;
+}
+.category-cell.active {
+  background: linear-gradient(120deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 12px 26px rgba(37,99,235,0.24);
+}
+.cell-text {
+  font-size: 15px;
+  font-weight: 600;
+}
+.main-content { min-width: 0; }
 
 .search-container {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 15px;
+  width: calc(100% - 60px);
+  max-width: 1160px;
+  padding-left: 36px;
 }
 
 .search-filter-section {
   position: sticky;
-  top: 0;
-  z-index: 100;
-  background: white;
-  padding: 15px 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.search-container {
+  top: var(--nav-offset);
+  z-index: 10;
+  background: transparent;
+  padding: 6px 0 12px;
+  box-shadow: none;
   display: flex;
-  margin-bottom: 15px;
+  justify-content: center;
+}
+.search-filter-section.collapsed {
+  padding: 6px 12px;
+  justify-content: flex-end;
 }
 
 .search-input {
   flex: 1;
   margin-right: 10px;
 }
+.search-input :deep(.el-input__wrapper) {
+  height: 48px;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 #f8fafc, 0 1px 2px rgba(15,23,42,0.08);
+}
+.search-input :deep(.el-input__inner) {
+  font-size: 14px;
+  color: #0f172a;
+}
+.search-input :deep(.el-input__inner::placeholder) {
+  color: #9ca3af;
+}
 
 .search-button {
-  width: 120px;
+  width: 52px;
+  min-width: 52px;
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(120deg, #2563eb, #1d4ed8);
+  box-shadow: 0 10px 22px rgba(37,99,235,0.28);
+  font-weight: 700;
+  padding: 0;
+}
+.search-button:hover {
+  filter: brightness(1.03);
+  box-shadow: 0 14px 26px rgba(37,99,235,0.32);
+}
+.search-button:active {
+  filter: brightness(0.97);
+  box-shadow: 0 8px 18px rgba(37,99,235,0.28);
 }
 
-.category-tags {
+.search-button.icon-only :deep(.el-icon) {
+  font-size: 18px;
+}
+
+.search-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #2563eb, #1d4ed8);
+  box-shadow: 0 10px 22px rgba(37,99,235,0.28);
+  color: #fff;
+  cursor: pointer;
+}
+.search-fab:hover {
+  filter: brightness(1.03);
+  box-shadow: 0 14px 26px rgba(37,99,235,0.32);
+}
+.search-fab:active {
+  filter: brightness(0.97);
+  box-shadow: 0 8px 18px rgba(37,99,235,0.28);
+}
+
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: all 0.18s ease;
+}
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.mobile-categories { display: none; }
+.mobile-tags {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
-  padding: 5px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 0 2px;
 }
-
 .category-tag {
   border-radius: 16px;
   padding: 6px 15px;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
 }
 
 .product-list-container {
@@ -686,16 +925,15 @@ fetchAdvertisements();
 }
 
 @media (max-width: 768px) {
+  .content-layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .mobile-categories { display: block; }
   .search-filter-section {
     flex-direction: column;
     gap: 10px;
   }
 
-  .category-tags {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+  .mobile-tags { gap: 6px; }
 }
 
 @media (max-width: 480px) {
