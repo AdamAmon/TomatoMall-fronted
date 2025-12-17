@@ -40,6 +40,9 @@ const selectedTag = ref<TagEnum | null>(null); // 新增这一行
 const isCollapsedSearch = ref(false);
 const isSearchFocus = ref(false);
 const isPastNav = ref(false);
+// 侧边栏与容器引用，用于计算与锚点（pagination-wrapper）的相对位置
+const sidebarCardRef = ref<HTMLElement | null>(null);
+const pageContainerRef = ref<HTMLElement | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(8);// 每页显示8个商品
 
@@ -48,6 +51,15 @@ const pageSize = ref(8);// 每页显示8个商品
 const COLLAPSE_THRESHOLD_SEARCH = 140; // 超过则折叠
 const EXPAND_THRESHOLD_SEARCH = 120;   // 回到此以下才展开
 const SCROLL_THRESHOLD_SIDEBAR = 72;   // 侧边栏贴顶阈值
+
+const getNavOffsetPx = (): number => {
+  // 从容器作用域 CSS 变量 --nav-offset 读取偏移，默认回退 72
+  const el = pageContainerRef.value;
+  if (!el) return 72;
+  const v = getComputedStyle(el).getPropertyValue('--nav-offset').trim();
+  const m = v.match(/([0-9.]+)px/);
+  return m ? parseFloat(m[1]) : 72;
+};
 
 const handleScroll = () => {
   const y = window.scrollY;
@@ -66,6 +78,29 @@ const handleScroll = () => {
     isCollapsedSearch.value = true;
   } else if (isCollapsedSearch.value && y < EXPAND_THRESHOLD_SEARCH) {
     isCollapsedSearch.value = false;
+  }
+
+  // 限制侧边栏底部不超过容器（product-page-container）底部
+  const sidebarEl = sidebarCardRef.value;
+  if (sidebarEl) {
+    const navOffset = getNavOffsetPx();
+    const containerEl = pageContainerRef.value;
+
+    if (containerEl) {
+      const containerRect = containerEl.getBoundingClientRect();
+      const sidebarHeight = sidebarEl.offsetHeight || sidebarEl.getBoundingClientRect().height;
+
+      // 默认的粘附顶部（受是否越过导航阈值影响）
+      const defaultTop = isPastNav.value ? 0 : navOffset;
+
+      // 希望的顶部位置：不超过让侧边栏底部触及容器底部的位置
+      const cappedTop = Math.min(defaultTop, containerRect.bottom - sidebarHeight);
+
+      sidebarEl.style.top = `${cappedTop}px`;
+    } else {
+      // 无容器引用时恢复默认顶部
+      sidebarEl.style.top = isPastNav.value ? '0px' : `${navOffset}px`;
+    }
   }
 };
 
@@ -193,20 +228,24 @@ fetchAdvertisements();
 
 onMounted(() => {
   window.addEventListener("scroll", handleScroll, { passive: true });
+  window.addEventListener("resize", handleScroll);
+  // 初始化一次，确保首次渲染位置正确
+  handleScroll();
 });
 
 onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll);
+  window.removeEventListener("resize", handleScroll);
 });
 </script>
 
 
 <template>
-  <div class="product-page-container">
+  <div class="product-page-container" ref="pageContainerRef">
     <div class="content-layout">
       <!-- 左侧边栏：分类标签 -->
       <aside class="sidebar">
-        <div class="sidebar-card" :class="{ 'sidebar-top-flush': isPastNav }">
+        <div class="sidebar-card" :class="{ 'sidebar-top-flush': isPastNav }" ref="sidebarCardRef">
           <div
               class="category-grid"
           >
