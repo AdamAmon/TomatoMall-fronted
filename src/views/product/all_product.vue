@@ -417,10 +417,9 @@ onUnmounted(() => {
                           v-model="product.rate"
                           disabled
                           :max="5"
-                          show-score
                           text-color="#ff9900"
-                          score-template="{value}"
                       />
+                      <span class="score-text">{{ Number(product.rate ?? 0).toFixed(2) }}</span>
                     </div>
                   </div>
 
@@ -898,6 +897,13 @@ onUnmounted(() => {
 .product-rating {
   display: flex;
   align-items: center;
+}
+
+.product-rating .score-text {
+  margin-left: 8px;
+  color: #ff9900;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 
