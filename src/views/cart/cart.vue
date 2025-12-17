@@ -23,7 +23,6 @@ export default defineComponent({
     const loading = ref(true);
     const router = useRouter();
     const selectedPaymentMethod = ref<string>('ALIPAY');
-    const paymentMethods = ['WECHATPAY', 'CREDITCARD', 'ALIPAY'];
     const error = ref<string | null>(null);
 
     // 优惠券相关
@@ -39,13 +38,6 @@ export default defineComponent({
         vip.value = res.data.data.vip
       })
     }
-
-    // 支付方式映射对象
-    const paymentMethodMap: { [key: string]: string } = {
-      'WECHATPAY': '微信支付',
-      'CREDITCARD': '信用卡支付',
-      'ALIPAY': '支付宝支付'
-    };
 
     // 获取购物车商品
     const fetchCartItems = async () => {
@@ -218,10 +210,6 @@ export default defineComponent({
       return price;
     });
 
-    const selectPaymentMethod = (method: string) => {
-      selectedPaymentMethod.value = method;
-    };
-
     // 选择优惠券
     const selectCoupon = (coupon: CouponVO | null) => {
       //取消选择
@@ -262,7 +250,7 @@ export default defineComponent({
           return;
         }
 
-        const paymentMethod = selectedPaymentMethod.value || 'ALIPAY';
+        const paymentMethod = 'ALIPAY';
         if (selectedCoupon){
           await createOrder(
               parseInt(userId, 10),
@@ -332,10 +320,7 @@ export default defineComponent({
       discountedTotalPrice,
       handlePay,
       clearCart,
-      paymentMethods,
       selectedPaymentMethod,
-      selectPaymentMethod,
-      paymentMethodMap,
       error,
       coupons,
       loadingCoupons,
@@ -469,22 +454,14 @@ export default defineComponent({
           </div>
 
           <div class="payment-section">
-            <h4>支付方式</h4>
-            <el-scrollbar>
-              <div class="payment-scroll-container">
-                <div class="payment-methods">
-                  <el-button
-                      v-for="method in paymentMethods"
-                      :key="method"
-                      :type="selectedPaymentMethod === method ? 'primary' : ''"
-                      @click="selectPaymentMethod(method)"
-                      class="payment-method"
-                  >
-                    {{ paymentMethodMap[method] }}
-                  </el-button>
-                </div>
-              </div>
-            </el-scrollbar>
+            <div class="payment-single">
+              <img
+                  class="alipay-icon"
+                  src="https://ts1.tc.mm.bing.net/th/id/OIP-C.14ZKRBuz2xiirpUkw9ReDgHaFZ?w=291&h=211&c=8&rs=1&qlt=90&o=6&dpr=1.5&pid=3.1&rm=2"
+                  alt="Alipay"
+              />
+              <span class="alipay-text">支付宝支付</span>
+            </div>
           </div>
 
           <div class="checkout-buttons">
@@ -798,6 +775,28 @@ export default defineComponent({
   margin-bottom: 12px;
   font-size: 15px;
   color: #555;
+}
+
+.payment-single {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #f9f9f9;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alipay-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.alipay-text {
+  font-weight: 600;
 }
 
 .payment-methods {
