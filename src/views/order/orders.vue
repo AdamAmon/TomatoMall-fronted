@@ -22,6 +22,7 @@ export default defineComponent({
     const cartItems = ref<CartItemInfo[]>([]);
     const couponId = localStorage.getItem('couponId') || null;
     const intervalId = ref<number | null>(null);
+    const username = ref(localStorage.getItem('username') || '用户');
 
     // 计算状态类名
     const statusClass = computed(() => {
@@ -163,7 +164,10 @@ export default defineComponent({
       statusClass,
       handlePay,
       navigateToDashboard,
-      fetchOrderDetails // 添加缺失的导出
+      fetchOrderDetails, // 添加缺失的导出
+      username,
+      cartItems,
+      products
     };
   },
 });
@@ -188,82 +192,104 @@ export default defineComponent({
     </div>
 
     <div v-else class="payment-content">
-      <!-- 订单信息卡片 -->
-      <div class="payment-card">
-        <div class="card-header">
-          <div class="status-tag" :class="statusClass">
-            {{ order.status }}
+      <div class="payment-layout">
+        <div class="products-panel">
+          <div class="panel-header">
+            <h3>购买商品</h3>
+            <p class="panel-subtitle">下单商品列表</p>
           </div>
-          <div class="time-info">
-            <i class="icon-clock"></i>
-            <span>{{ new Date(order.createdAt).toLocaleString() }}</span>
+          <div v-if="cartItems.filter(item => products[item.productId]).length" class="product-grid">
+            <div
+                v-for="item in cartItems.filter(item => products[item.productId])"
+                :key="item.itemId"
+                class="product-card"
+            >
+              <div class="product-image-container">
+                <img
+                    :src="products[item.productId]?.cover"
+                    class="product-image"
+                    alt="商品封面"
+                />
+              </div>
+              <div class="product-info">
+                <h4 class="product-title">{{ products[item.productId]?.title || '未知商品' }}</h4>
+                <p class="product-desc">{{ products[item.productId]?.description || '暂无描述' }}</p>
+                <div class="product-meta">
+                  <span class="price-group">
+                    <span class="price">¥{{ (products[item.productId]?.price || 0).toFixed(2) }}</span>
+                    <span class="qty">x{{ item.quantity }}</span>
+                  </span>
+                  <span class="subtotal">小计 ¥{{ ((products[item.productId]?.price || 0) * item.quantity).toFixed(2) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-products">
+            <p>暂无商品信息</p>
           </div>
         </div>
 
-        <div class="order-info">
-          <div class="info-row">
-            <i class="icon-user"></i>
-            <div>
-              <p class="info-label">用户ID</p>
-              <p class="info-value">{{ order.userId }}</p>
+        <div class="info-panel">
+          <div class="summary-card">
+            <div class="summary-header">
+              <div class="status-tag" :class="statusClass">
+                {{ order.status }}
+              </div>
+              <div class="order-id">订单号：{{ order.id }}</div>
+            </div>
+            <div class="summary-row">
+              <span>创建时间</span>
+              <span>{{ new Date(order.createdAt).toLocaleString() }}</span>
+            </div>
+            <div class="summary-row total-row">
+              <span>应付总额</span>
+              <span class="amount">¥{{ order.totalPrice.toFixed(2) }}</span>
             </div>
           </div>
 
-          <div class="info-row">
-            <i class="icon-payment"></i>
-            <div>
-              <p class="info-label">支付方式</p>
-              <p class="info-value">{{ order.paymentMethod || '在线支付' }}</p>
+          <div class="user-card">
+            <div class="user-row">
+              <span>用户名</span>
+              <span class="user-value">{{ username }}</span>
+            </div>
+            <div class="user-row">
+              <span>支付方式</span>
+              <span class="user-value pay-method">
+                <img
+                    class="alipay-icon"
+                    src="https://ts1.tc.mm.bing.net/th/id/OIP-C.14ZKRBuz2xiirpUkw9ReDgHaFZ?w=291&h=211&c=8&rs=1&qlt=90&o=6&dpr=1.5&pid=3.1&rm=2"
+                    alt="Alipay"
+                />
+                支付宝支付
+              </span>
+            </div>
+            <div class="user-row">
+              <span>优惠券</span>
+              <span class="user-value">{{ couponId ? '已使用优惠券' : '未使用优惠券' }}</span>
             </div>
           </div>
 
-          <div class="info-row">
-            <i class="icon-tag"></i>
-            <div>
-              <p class="info-label">优惠券</p>
-              <p class="info-value">{{ couponId ? '已使用优惠券' : '未使用优惠券' }}</p>
-            </div>
+          <div class="actions-card">
+            <button
+                @click="handlePay"
+                :disabled="isPaying || order.status === '交易成功'"
+                class="pay-btn"
+            >
+              <span v-if="isPaying">
+                <i class="icon-spinner spin"></i> 支付处理中...
+              </span>
+              <span v-else-if="order.status !== '交易成功'">
+                <i class="icon-check-circle"></i> 立即支付
+              </span>
+              <span v-else>
+                <i class="icon-check-circle"></i> 支付已完成
+              </span>
+            </button>
+            <button @click="navigateToDashboard" class="back-btn">
+              <i class="icon-arrow-left"></i> 返回主页
+            </button>
           </div>
         </div>
-
-        <div class="divider"></div>
-
-        <div class="price-summary">
-          <div class="price-row">
-            <p class="price-label">总金额</p>
-            <p class="price-value">{{ order.totalPrice.toFixed(2) }} 元</p>
-          </div>
-        </div>
-
-        <div v-if="order.cartItemIds && order.cartItemIds.length" class="cart-items">
-          <h3><i class="icon-shopping-cart"></i> 购买商品</h3>
-          <ul class="item-list">
-            <li v-for="itemId in order.cartItemIds" :key="itemId">
-              <span>商品ID: {{ itemId }}</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="payment-actions">
-        <button
-            @click="handlePay"
-            :disabled="isPaying || order.status === '交易成功'"
-            class="pay-btn"
-        >
-          <span v-if="isPaying">
-            <i class="icon-spinner spin"></i> 支付处理中...
-          </span>
-          <span v-else-if="order.status !== '交易成功'">
-            <i class="icon-check-circle"></i> 立即支付
-          </span>
-          <span v-else>
-            <i class="icon-check-circle"></i> 支付已完成
-          </span>
-        </button>
-        <button @click="navigateToDashboard" class="back-btn">
-          <i class="icon-arrow-left"></i> 返回主页
-        </button>
       </div>
     </div>
   </div>
@@ -272,9 +298,9 @@ export default defineComponent({
 <style scoped>
 /* 基础布局 */
 .payment-container {
-  max-width: 800px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 20px;
   font-family: 'Segoe UI', 'PingFang SC', sans-serif;
   color: #333;
 }
@@ -366,23 +392,172 @@ export default defineComponent({
   transform: translateY(-1px);
 }
 
-/* 支付卡片 */
-.payment-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  margin-bottom: 24px;
+/* 布局与卡片 */
+.payment-content {
+  width: 100%;
 }
 
-.card-header {
-  padding: 20px;
-  border-bottom: 1px solid #f0f0f0;
+.payment-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.products-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.panel-subtitle {
+  margin: 0;
+  color: #888;
+  font-size: 13px;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.product-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.product-image-container {
+  height: 200px;
+  position: relative;
+  overflow: hidden;
+}
+
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s;
+  background: #f7f7f7;
+}
+
+.product-card:hover .product-image {
+  transform: scale(1.04);
+}
+
+.product-info {
+  padding: 14px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.product-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-desc {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.price-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.price {
+  color: #ff5000;
+  font-weight: 700;
+}
+
+.qty {
+  color: #555;
+}
+
+.subtotal {
+  color: #e74c3c;
+  font-weight: 700;
+}
+
+.empty-products {
+  background: white;
+  border: 1px dashed #e0e0e0;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  color: #888;
+}
+
+.info-panel {
+  width: 340px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 50vh;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary-card,
+.user-card,
+.actions-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  padding: 18px;
+}
+
+.summary-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .status-tag {
@@ -402,138 +577,64 @@ export default defineComponent({
   color: #ff8f00;
 }
 
-.time-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.order-id {
   color: #666;
+  font-size: 13px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  color: #555;
+  margin: 8px 0;
   font-size: 14px;
 }
 
-.icon-clock:before {
-  content: '🕒';
+.total-row .amount {
+  color: #ff5000;
+  font-size: 22px;
+  font-weight: 800;
 }
 
-/* 订单信息 */
-.order-info {
-  padding: 20px;
-}
-
-.info-row {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 22px;
-}
-
-.icon-user:before {
-  content: '👤';
-  font-size: 24px;
-}
-
-.icon-payment:before {
-  content: '💳';
-  font-size: 24px;
-}
-
-.icon-tag:before {
-  content: '🏷️';
-  font-size: 24px;
-}
-
-.info-label {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.info-value {
-  font-weight: 500;
-  font-size: 17px;
-}
-
-/* 分隔线 */
-.divider {
-  height: 1px;
-  background: #f0f0f0;
-  margin: 10px 20px;
-}
-
-/* 价格区域 */
-.price-summary {
-  padding: 20px;
-  background: #f9fafb;
-}
-
-.price-row {
+.user-card .user-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 10px;
+  color: #444;
 }
 
-.price-label {
-  font-weight: 500;
-  font-size: 18px;
+.user-row:last-child {
+  margin-bottom: 0;
 }
 
-.price-value {
-  font-weight: 700;
-  font-size: 28px;
-  color: #e53935;
-}
-
-/* 购物商品 */
-.cart-items {
-  padding: 0 20px 20px;
-}
-
-.icon-shopping-cart:before {
-  content: '🛒';
-  font-size: 1.2em;
-}
-
-.cart-items h3 {
-  font-size: 18px;
-  margin-bottom: 16px;
-  display: flex;
+.user-value {
+  font-weight: 600;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.item-list {
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 12px;
+.pay-method img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 
-.item-list li {
-  padding: 10px 8px;
-  border-bottom: 1px solid #f5f5f5;
-  font-size: 15px;
+.actions-card {
   display: flex;
-  align-items: center;
-}
-
-.item-list li:last-child {
-  border-bottom: none;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* 支付按钮 */
-.payment-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 .pay-btn {
   background: linear-gradient(135deg, #0066cc, #003d99);
   color: white;
   border: none;
-  padding: 18px;
+  padding: 16px;
   border-radius: 10px;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
@@ -559,7 +660,7 @@ export default defineComponent({
   background: white;
   color: #666;
   border: 1px solid #ddd;
-  padding: 15px;
+  padding: 14px;
   border-radius: 10px;
   font-size: 16px;
   cursor: pointer;
@@ -597,6 +698,18 @@ export default defineComponent({
 }
 
 /* 响应式调整 */
+@media (max-width: 1100px) {
+  .payment-layout {
+    flex-direction: column;
+  }
+
+  .info-panel {
+    position: static;
+    width: 100%;
+    transform: none;
+  }
+}
+
 @media (max-width: 600px) {
   .payment-container {
     padding: 16px;
@@ -606,14 +719,8 @@ export default defineComponent({
     font-size: 24px;
   }
 
-  .price-value {
-    font-size: 24px;
-  }
-
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .panel-header h3 {
+    font-size: 17px;
   }
 
   .pay-btn, .back-btn {
