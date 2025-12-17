@@ -2,8 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { updateInfo, getAllProducts, getOneProductAmount, searchName,searchByTag,TagEnum } from '../../api/product.ts';
-import { addProductToCart, changeCartItemQuantity, getAllCartItems, getCart } from '../../api/cart.ts';
-import { ElMessage } from 'element-plus'; // 确保导入 ElMessage
+// 购物车相关逻辑已从列表页移除，无需导入
 import { getAllAdvertisements } from "../../api/advertisement"; // 新增广告API导入
 import { Search } from "@element-plus/icons-vue";
 
@@ -37,7 +36,6 @@ const tagEnumMapping: { [key in TagEnum]: string } = {
   [TagEnum.OTHER]: 'OTHER',
 };
 const tags = Object.values(TagEnum);
-const selectedQuantity = ref<{ [key: number]: number }>({});
 const selectedTag = ref<TagEnum | null>(null); // 新增这一行
 const isCollapsedSearch = ref(false);
 const isSearchFocus = ref(false);
@@ -189,58 +187,6 @@ const pagedProducts = computed(() => {
   return products.value.slice(start, start + pageSize.value);
 });
 
-// 添加商品到购物车
-const addToCart = async (productId: number, quantity: number) => {
-  try {
-    const userId = parseInt(localStorage.getItem('userId') || '0');
-    if (userId <= 0) {
-      throw new Error('用户未登录或用户ID无效');
-    }
-
-    // 检查数量是否超过可用库存
-    if (!checkQuantity(productId, quantity)) {
-      return;
-    }
-
-    // 获取当前用户的购物车中的所有商品
-    const cartResponse = await getCart(userId);
-    const cartId = cartResponse.data.cartId; // 假设返回的购物车信息中包含 cartId
-    const cartItemsResponse = await getAllCartItems(cartId);
-    const cartItems = cartItemsResponse.data;
-
-    // 检查商品是否已经在购物车中
-    const existingCartItem = cartItems.find((item: any) => item.productId === productId);
-
-    if (existingCartItem) {
-      // 如果商品已存在，更新商品数量
-      await changeCartItemQuantity(userId, existingCartItem.itemId.toString(), existingCartItem.quantity + quantity);
-      ElMessage.success('商品数量已更新');
-    } else {
-      // 如果商品不存在，添加新商品
-      await addProductToCart(userId, productId.toString(), quantity);
-      ElMessage.success('商品已成功加入购物车');
-    }
-
-    // 刷新商品列表以更新库存信息
-    await fetchProducts();
-  } catch (error) {
-    console.error('加入购物车失败:', error);
-    ElMessage.error('加入购物车失败，请稍后再试');
-  }
-};
-
-// 检查数量是否超过可用库存
-const checkQuantity = (productId: number, quantity: number): boolean => {
-  const product = products.value.find(p => p.id === productId);
-  if (product && product.stockpile) {
-    const availableStock = (product.stockpile.amount || 0) - (product.stockpile.frozen || 0) - 1;
-    if (quantity > availableStock) {
-      ElMessage.error('选择的数量超过可用库存');
-      return false;
-    }
-  }
-  return true;
-};
 
 fetchProducts();
 fetchAdvertisements();
@@ -856,6 +802,7 @@ onUnmounted(() => {
   height: 42px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-bottom: 6px;
@@ -883,6 +830,7 @@ onUnmounted(() => {
   height: 40px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
