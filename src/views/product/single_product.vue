@@ -32,6 +32,22 @@ const error = ref<string | null>(null);
 const commentContent = ref("");
 const commentRate = ref(5);
 
+// 评论分页
+const pageSize = ref(5);
+const currentPage = ref(1);
+const pagedComments = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return comments.value.slice(start, start + pageSize.value);
+});
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
+};
+const adjustPageWithinRange = () => {
+  const max = Math.max(1, Math.ceil((comments.value.length || 0) / pageSize.value));
+  if (currentPage.value > max) currentPage.value = max;
+  if (currentPage.value < 1) currentPage.value = 1;
+};
+
 // 弹窗与表单状态
 const showEditProductDialog = ref(false);
 const showEditStockDialog = ref(false);
@@ -79,6 +95,8 @@ const fetchProductComments = async () => {
     const response = await getProductComments(productId);
     if (response.code == 200) {
       comments.value = response.data;
+      // 重新计算页码，避免删除后页码越界
+      adjustPageWithinRange();
     } else {
       error.value = response.message || "获取评论失败";
     }
@@ -520,7 +538,7 @@ onMounted(async () => {
             <el-tab-pane label="用户评价">
               <div v-if="comments.length === 0" class="no-comments">还没有评论，快来发表第一个评论吧！</div>
 
-              <div v-for="comment in comments" :key="comment.id" class="comment-item">
+              <div v-for="comment in pagedComments" :key="comment.id" class="comment-item">
                 <div class="comment-header">
                   <div class="user-info">
                     <el-avatar :size="40" :src="comment.avatar || defaultAvatar"></el-avatar>
@@ -534,6 +552,17 @@ onMounted(async () => {
                 </div>
                 <div class="comment-content"><p>{{ comment.content }}</p></div>
               </div>
+
+              <el-pagination
+                v-if="comments.length > pageSize"
+                class="comment-pagination"
+                background
+                layout="prev, pager, next"
+                :total="comments.length"
+                :page-size="pageSize"
+                :current-page="currentPage"
+                @current-change="handlePageChange"
+              />
 
               <div class="post-comment">
                 <h3 class="section-subtitle">发表评论</h3>
@@ -1030,6 +1059,12 @@ onMounted(async () => {
   background: #f9fafb;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
+}
+
+.comment-pagination {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 20px;
 }
 
 .section-subtitle {
