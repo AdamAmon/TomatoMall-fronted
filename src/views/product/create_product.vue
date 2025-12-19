@@ -13,8 +13,13 @@ const productInfo = ref<createInfo>({
   description: "",
   cover: "",
   detail: "",
-  specifications: [],
-  tag:undefined,
+  specifications: [
+    { item: "商品编码（ISBN）", value: "" },
+    { item: "出版时间", value: "" },
+    { item: "出版社", value: "" },
+    { item: "作者", value: "" },
+  ],
+  tag: undefined,
 });
 
 // 新规格输入
@@ -189,11 +194,23 @@ const handleSubmit = async () => {
             </div>
 
             <div class="spec-item" v-for="(spec, index) in productInfo.specifications" :key="index">
-              <div>{{ spec.item }}</div>
-              <div>{{ spec.value }}</div>
               <div>
-                <button class="delete-btn" @click="removeSpecification(index)">
-                  <i class="fas fa-trash-alt"></i>
+                <input
+                  type="text"
+                  v-model="spec.item"
+                  placeholder="规格名称"
+                />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  v-model="spec.value"
+                  placeholder="规格值"
+                />
+              </div>
+              <div>
+                <button class="delete-btn" @click="removeSpecification(index)" title="删除" aria-label="删除规格">
+                  <span class="delete-icon">×</span>
                 </button>
               </div>
             </div>
@@ -507,9 +524,20 @@ body {
   border-radius: 50%;
 }
 
+.delete-btn .delete-icon {
+  color: #e53e3e !important;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .delete-btn:hover {
   background-color: #fff5f5;
   transform: scale(1.1);
+}
+
+.delete-btn:hover .delete-icon {
+  color: #c53030 !important;
 }
 
 .form-footer {

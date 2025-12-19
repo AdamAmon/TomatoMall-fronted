@@ -105,7 +105,10 @@ const viewProduct = (productId: number) => {
             <h3 class="product-title">{{ product.title }}</h3>
             <div class="price-section">
               <p class="price">¥{{ product.price.toFixed(2) }}</p>
-              <el-rate v-model="product.rate" disabled show-score text-color="#ff9900"/>
+              <div class="rate-wrapper">
+                <el-rate v-model="product.rate" disabled text-color="#ff9900" />
+                <span class="rate-score">{{ Number(product.rate).toFixed(2) }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -290,6 +293,18 @@ const viewProduct = (productId: number) => {
   color: #e02d2d;
   font-size: 18px;
   font-weight: 700;
+}
+
+.rate-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rate-score {
+  color: #ff9900;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .empty-recommend {

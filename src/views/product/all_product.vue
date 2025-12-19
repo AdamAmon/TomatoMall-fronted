@@ -44,7 +44,7 @@ const isPastNav = ref(false);
 const sidebarCardRef = ref<HTMLElement | null>(null);
 const pageContainerRef = ref<HTMLElement | null>(null);
 const currentPage = ref(1);
-const pageSize = ref(8);// 每页显示8个商品
+const pageSize = ref(12);// 每页显示8个商品
 
 // 独立滚动阈值：搜索与侧边栏互不影响
 // 搜索栏采用折叠/展开双阈值以避免临界点闪烁

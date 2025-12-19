@@ -183,7 +183,7 @@ getUserInfo();
               </div>
               <div class="action-content">
                 <h3>浏览商品</h3>
-                <p>探索番茄书城最新图书</p>
+                <p>探索蓝鲸书城最新图书</p>
               </div>
               <el-icon><ArrowRight /></el-icon>
             </div>
