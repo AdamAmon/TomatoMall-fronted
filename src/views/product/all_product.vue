@@ -90,13 +90,25 @@ const handleScroll = () => {
       const containerRect = containerEl.getBoundingClientRect();
       const sidebarHeight = sidebarEl.offsetHeight || sidebarEl.getBoundingClientRect().height;
 
-      // 默认的粘附顶部（受是否越过导航阈值影响）
-      const defaultTop = isPastNav.value ? 0 : navOffset;
+      // 容器的上、下边界（相对视口坐标）
+      const containerTop = containerRect.top;
+      const containerBottom = containerRect.bottom;
 
-      // 希望的顶部位置：不超过让侧边栏底部触及容器底部的位置
-      const cappedTop = Math.min(defaultTop, containerRect.bottom - sidebarHeight);
+      // 粘性定位效果：
+      // 1) 当容器顶部尚未到达导航偏移时，侧边栏与容器一起向下滑动（top = containerTop）
+      // 2) 一旦容器顶部越过导航偏移，则侧边栏贴在导航下方（top = navOffset）
+      // 3) 始终保持侧边栏底部不越过容器底部
+      const maxTop = containerBottom - sidebarHeight;
+      let desiredTop = Math.max(containerTop, navOffset);
 
-      sidebarEl.style.top = `${cappedTop}px`;
+      if (maxTop < containerTop) {
+        // 容器高度小于侧边栏高度：退化为容器顶部
+        desiredTop = containerTop;
+      } else {
+        desiredTop = Math.min(desiredTop, maxTop);
+      }
+
+      sidebarEl.style.top = `${Math.round(desiredTop)}px`;
     } else {
       // 无容器引用时恢复默认顶部
       sidebarEl.style.top = isPastNav.value ? '0px' : `${navOffset}px`;
