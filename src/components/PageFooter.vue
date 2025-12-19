@@ -130,18 +130,32 @@ onMounted(fetchCopyright)
 .footer-badge {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 40px;
   justify-content: center; /* 居中这三个徽标 */
   align-items: center;
 }
 
 .badge {
-  background: #1d4ed8;
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #111827;
   font-weight: 700;
-  box-shadow: 0 10px 24px rgba(29, 78, 216, 0.18);
+  font-size: 18px;
+  background: transparent;
+  padding: 2px 0;
+}
+
+.badge::before {
+  content: "";
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  /* 红色六边形描边图标（内含“书”字），与图片风格接近 */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><polygon points='12,2 21,7 21,17 12,22 3,17 3,7' fill='none' stroke='%23c81e1e' stroke-width='1.8'/><text x='12' y='15' text-anchor='middle' font-size='12' fill='%23c81e1e'>书</text></svg>");
 }
 
 .footer-grid {
@@ -219,6 +233,15 @@ onMounted(fetchCopyright)
 
   .footer-grid {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .badge {
+    font-size: 16px;
+  }
+
+  .badge::before {
+    width: 22px;
+    height: 22px;
   }
 }
 </style>
