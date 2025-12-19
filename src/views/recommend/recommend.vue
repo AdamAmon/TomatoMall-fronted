@@ -219,7 +219,6 @@ const viewProduct = (productId: number) => {
 
 .recommend-panel.horizontal-right { margin-left: 10px; }
 
-.recommend-panel.horizontal-left { /* 间距已通过 right: calc(100% + 10px) 设置，无需额外 margin */ }
 
 .recommend-panel.open {
   opacity: 1;
@@ -277,6 +276,7 @@ const viewProduct = (productId: number) => {
   line-height: 1.4;
   height: 42px;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;

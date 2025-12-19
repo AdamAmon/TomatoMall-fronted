@@ -9,7 +9,6 @@ import {
   User,
   Iphone,
   Location,
-  Picture,
   ShoppingCart,
   Goods,
   Plus,

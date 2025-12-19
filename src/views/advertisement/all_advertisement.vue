@@ -297,6 +297,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -531,6 +532,7 @@ body {
   height: 2em; /* 限制两行高度 */
   overflow: hidden;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -540,6 +542,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
+  line-clamp: 3; /* 最多显示3行 */
   -webkit-line-clamp: 3; /* 最多显示3行 */
   -webkit-box-orient: vertical;
 }
