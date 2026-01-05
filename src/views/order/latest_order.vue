@@ -6,9 +6,8 @@ import { ElMessage } from 'element-plus';
 
 const router = useRouter();
 const loading = ref(true);
-const error = ref<string | null>(null);
+const error = ref<string>('');
 const order = ref<any>(null);
-const username = ref(localStorage.getItem('username') || '用户');
 
 const statusClass = computed(() => {
   if (!order.value) return '';
@@ -17,7 +16,7 @@ const statusClass = computed(() => {
 
 const fetchLatestOrder = async () => {
   loading.value = true;
-  error.value = null;
+  error.value = '';
   try {
     const userId = localStorage.getItem('userId');
     if (!userId) {
