@@ -62,7 +62,12 @@ const router = createRouter({
         name: "SingleAdvertisement",
         component: () => import('../views/advertisement/single_advertisement.vue'),
         meta: { title: '广告详情' }
-      }
+      },{
+        path: '/order/latest',
+        name: 'LatestOrder',
+        component: () => import('../views/order/latest_order.vue'),
+        meta: { title: '我的订单' }
+    }
     ]
   }, {
     path: '/order/:id',

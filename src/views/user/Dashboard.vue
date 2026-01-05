@@ -77,6 +77,9 @@ function navigateToCreateAdvertisement() {
 function navigateToAllCoupons() {
   router.push({ path: "/coupon/all_coupon" });
 }
+function navigateToOrders() {
+  router.push({ path: "/order/latest" });
+}
 
 // 获取用户信息
 function getUserInfo() {
@@ -194,6 +197,17 @@ getUserInfo();
               <div class="action-content">
                 <h3>我的购物车</h3>
                 <p>查看和管理购物车</p>
+              </div>
+              <el-icon><ArrowRight /></el-icon>
+            </div>
+
+            <div class="action-card" @click="navigateToOrders">
+              <div class="action-icon">
+                <el-icon><Goods /></el-icon>
+              </div>
+              <div class="action-content">
+                <h3>我的订单</h3>
+                <p>查看最近完成的订单</p>
               </div>
               <el-icon><ArrowRight /></el-icon>
             </div>

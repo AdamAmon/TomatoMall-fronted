@@ -33,6 +33,7 @@ const goCreateProduct = () => router.push({ path: '/product/create_product' })
 const goAds = () => router.push({ name: 'AllAdvertisements' })
 const goCreateAds = () => router.push({ name: 'CreateAdvertisement' })
 const goCoupons = () => router.push({ path: '/coupon/all_coupon' })
+const goOrders = () => router.push({ path: '/order/latest' })
 </script>
 
 
@@ -71,6 +72,10 @@ const goCoupons = () => router.push({ path: '/coupon/all_coupon' })
         <div class="nav-chip" @click="goCoupons">
           <el-icon><Tickets /></el-icon>
           <span>优惠券</span>
+        </div>
+        <div class="nav-chip" @click="goOrders">
+          <el-icon><Goods /></el-icon>
+          <span>我的订单</span>
         </div>
       </div>
 
